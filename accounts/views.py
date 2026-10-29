@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
@@ -19,9 +20,17 @@ from .tokens import email_verification_token, password_reset_token, user_from_ui
 SIMULATED_LINK_SESSION_KEY = "simulated_mail_link"
 
 
+def _show_links_on_page(site):
+    """Links aus E-Mails dürfen nur bei der lokalen Entwicklung (DEBUG) direkt angezeigt werden.
+
+    Im Betrieb würde das jedem erlauben, fremde Konten zu bestätigen oder Passwörter
+    zurückzusetzen. Im E-Mail-Simulationsmodus findet ein Admin die Links im Postausgang.
+    """
+    return settings.DEBUG and site.email_mode == SiteSettings.EMAIL_SIMULATION
+
+
 def _remember_simulated_link(request, site, url):
-    """Im E-Mail-Simulationsmodus wird der Link direkt angezeigt, damit man ohne Postfach testen kann."""
-    if site.email_mode == SiteSettings.EMAIL_SIMULATION:
+    if _show_links_on_page(site):
         request.session[SIMULATED_LINK_SESSION_KEY] = url
 
 
@@ -50,12 +59,14 @@ def register(request):
 
 
 def register_done(request):
+    site = SiteSettings.get()
     return render(
         request,
         "accounts/register_done.html",
         {
             "email": request.session.get("pending_verification_email"),
             "simulated_link": request.session.pop(SIMULATED_LINK_SESSION_KEY, None),
+            "email_simulated": site.email_mode == SiteSettings.EMAIL_SIMULATION,
         },
     )
 
@@ -141,7 +152,7 @@ def password_reset(request):
             user = User.objects.filter(email__iexact=email, is_active=True).first()
             if user:
                 url = send_password_reset_email(user, request)
-                if site.email_mode == SiteSettings.EMAIL_SIMULATION:
+                if _show_links_on_page(site):
                     simulated_link = url
         return render(
             request, "accounts/password_reset_sent.html", {"email": email, "simulated_link": simulated_link}

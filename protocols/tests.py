@@ -5,7 +5,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
 from core.pdf import render_text_pdf
-from core.testing import LONG_TEXT, BaseTestCase, make_paid_purchase, make_protocol, make_user
+from core.testing import LONG_TEXT, BaseTestCase, make_paid_purchase, make_protocol, make_user, unique_text
 from payments.models import Purchase
 
 from .importer import import_zip, parse_date_info
@@ -112,10 +112,10 @@ class UploadTests(BaseTestCase):
 
     def test_upload_with_existing_and_new_examiner(self):
         self.login()
-        pdf = render_text_pdf("Upload", [], LONG_TEXT)
+        pdf = render_text_pdf("Upload", [], unique_text(1))
         data = self.upload_data(
             [
-                {"examiner": str(self.examiners[0].pk), "content": LONG_TEXT},
+                {"examiner": str(self.examiners[0].pk), "content": unique_text(2)},
                 {"examiner": "new", "new_name": "Dr. Neu Prüfer", "new_subject": str(self.subject.pk),
                  "file": SimpleUploadedFile("protokoll.pdf", pdf, content_type="application/pdf")},
             ]
@@ -133,10 +133,29 @@ class UploadTests(BaseTestCase):
 
     def test_existing_examiner_is_reused_despite_other_spelling(self):
         self.login()
-        data = self.upload_data([{"examiner": "new", "new_name": "test 1", "content": LONG_TEXT}])
+        data = self.upload_data([{"examiner": "new", "new_name": "test 1", "content": unique_text(3)}])
         self.client.post(reverse("protocols:upload", args=[self.exam.slug]), data)
         self.assertEqual(Examiner.objects.filter(name_key="test 1").count(), 1)
         self.assertEqual(self.examiners[1].protocols.filter(uploaded_by=self.student).count(), 1)
+
+    def test_copied_protocol_is_rejected(self):
+        self.login()
+        copied = LONG_TEXT + " Und noch ein eigener Satz."
+        data = self.upload_data([{"examiner": str(self.examiners[0].pk), "content": copied}])
+        response = self.client.post(reverse("protocols:upload", args=[self.exam.slug]), data)
+        self.assertContains(response, "weitgehend mit einem bereits vorhandenen Protokoll")
+        self.assertFalse(Protocol.objects.filter(uploaded_by=self.student).exists())
+
+    def test_reuploaded_watermarked_pdf_is_rejected(self):
+        protocol = make_protocol(self.examiners[0], with_file=True, content="", file_body=unique_text(99))
+        make_paid_purchase(self.student, self.exam, self.examiners[:1])
+        self.login()
+        downloaded = self.client.get(reverse("protocols:protocol_file", args=[protocol.pk])).content
+        data = self.upload_data(
+            [{"examiner": str(self.examiners[1].pk), "file": SimpleUploadedFile("mein.pdf", downloaded)}]
+        )
+        response = self.client.post(reverse("protocols:upload", args=[self.exam.slug]), data)
+        self.assertContains(response, "weitgehend mit einem bereits vorhandenen Protokoll")
 
     def test_too_short_text_is_rejected(self):
         self.login()
@@ -164,13 +183,13 @@ class UploadTests(BaseTestCase):
 
     def test_duplicate_examiner_in_one_upload(self):
         self.login()
-        section = {"examiner": str(self.examiners[0].pk), "content": LONG_TEXT}
+        section = {"examiner": str(self.examiners[0].pk), "content": unique_text(4)}
         response = self.client.post(reverse("protocols:upload", args=[self.exam.slug]), self.upload_data([section, section]))
         self.assertContains(response, "nur einmal")
 
     def test_future_date_rejected(self):
         self.login()
-        data = self.upload_data([{"examiner": str(self.examiners[0].pk), "content": LONG_TEXT}], exam_date="2999-01-01")
+        data = self.upload_data([{"examiner": str(self.examiners[0].pk), "content": unique_text(5)}], exam_date="2999-01-01")
         response = self.client.post(reverse("protocols:upload", args=[self.exam.slug]), data)
         self.assertContains(response, "Zukunft")
 
@@ -178,7 +197,7 @@ class UploadTests(BaseTestCase):
         self.site.allow_new_examiners = False
         self.site.save()
         self.login()
-        data = self.upload_data([{"examiner": "new", "new_name": "Dr. Unbekannt", "content": LONG_TEXT}])
+        data = self.upload_data([{"examiner": "new", "new_name": "Dr. Unbekannt", "content": unique_text(6)}])
         response = self.client.post(reverse("protocols:upload", args=[self.exam.slug]), data)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Examiner.objects.filter(name="Dr. Unbekannt").exists())
@@ -187,7 +206,7 @@ class UploadTests(BaseTestCase):
         self.site.require_upload_approval = True
         self.site.save()
         self.login()
-        data = self.upload_data([{"examiner": "new", "new_name": "Dr. Moderiert", "content": LONG_TEXT}])
+        data = self.upload_data([{"examiner": "new", "new_name": "Dr. Moderiert", "content": unique_text(7)}])
         self.client.post(reverse("protocols:upload", args=[self.exam.slug]), data)
         protocol = Protocol.objects.get(uploaded_by=self.student)
         self.assertEqual(protocol.status, Protocol.STATUS_PENDING)

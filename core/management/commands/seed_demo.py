@@ -1,6 +1,8 @@
 import datetime
 import os
+import secrets
 
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -12,17 +14,25 @@ from core.pdf import render_text_pdf
 from payments.models import Purchase
 from payments.services import mark_paid
 from protocols.models import Exam, Examiner, Protocol, Subject
+from protocols.services import attach_file
 
 
 class Command(BaseCommand):
-    help = "Legt Beispieldaten an: M1, M2, M3 mit Testprüfern und je zwei Protokollen (mehrfach ausführbar)."
+    help = "Legt Beispieldaten an: M1, M2, M3 mit Testprüfern und je zwei Protokollen (nur, solange es noch keine Prüfungen gibt)."
 
     def add_arguments(self, parser):
         parser.add_argument("--ohne-nutzer", action="store_true", help="Keine Demo-Konten anlegen.")
+        parser.add_argument(
+            "--force", action="store_true", help="Auch anlegen, wenn es schon Prüfungen gibt (fehlende Teile ergänzen)."
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
-        SiteSettings.get()
+        site = SiteSettings.get()
+        if Exam.objects.exists() and not options["force"]:
+            # Wichtig für Docker (DEMO_DATA=1): gelöschte Beispieldaten sollen beim Neustart nicht wiederkommen.
+            self.stdout.write("Es gibt bereits Prüfungen – Beispieldaten werden nicht angelegt.")
+            return
         created_protocols = 0
         for exam_index, data in enumerate(EXAMS):
             exam, _ = Exam.objects.get_or_create(
@@ -66,9 +76,7 @@ class Command(BaseCommand):
                             footer_text="Beispielprotokoll – frei erfunden",
                         )
                         filename = f"protokoll-{exam.code.lower()}-{examiner.pk}-{day}.pdf"
-                        protocol.original_filename = filename
-                        protocol.file_size = len(pdf)
-                        protocol.file.save(filename, ContentFile(pdf), save=False)
+                        attach_file(protocol, ContentFile(pdf, name=filename))
                     protocol.save()
                     created_protocols += 1
 
@@ -76,19 +84,27 @@ class Command(BaseCommand):
 
         if options["ohne_nutzer"]:
             return
-        self._demo_users()
+        self._demo_users(site)
 
-    def _demo_users(self):
-        admin_email = os.environ.get("ADMIN_EMAIL", "admin@uni-beispiel.de").lower()
-        admin_password = os.environ.get("ADMIN_PASSWORD", "Admin123!")
-        if not User.objects.filter(email__iexact=admin_email).exists():
+    def _password(self, fixed):
+        # Feste, bekannte Passwörter nur bei der lokalen Entwicklung – im Betrieb zufällig.
+        return fixed if settings.DEBUG else secrets.token_urlsafe(12)
+
+    def _demo_users(self, site):
+        if not User.objects.filter(is_staff=True).exists():
+            admin_email = os.environ.get("ADMIN_EMAIL", "admin@uni-beispiel.de").lower()
+            admin_password = os.environ.get("ADMIN_PASSWORD") or self._password("Admin123!")
             User.objects.create_superuser(email=admin_email, password=admin_password, name="Fachschaft Admin")
             self.stdout.write(f"Admin-Konto: {admin_email} / {admin_password}")
 
+        if not site.is_simulation:
+            self.stdout.write("Zahlungsmodus ist nicht „Simulation“ – kein Demo-Konto für Studierende angelegt.")
+            return
         student_email = "student@uni-beispiel.de"
         if not User.objects.filter(email=student_email).exists():
+            student_password = self._password("Student123!")
             student = User.objects.create_user(
-                email=student_email, password="Student123!", name="Erika Studentin", email_verified=True
+                email=student_email, password=student_password, name="Erika Studentin", email_verified=True
             )
             m1 = Exam.objects.filter(code="M1").first()
             if m1:
@@ -101,4 +117,6 @@ class Command(BaseCommand):
                 )
                 purchase.examiners.set(m1.examiners.filter(name__in=["Prof. Dr. Anna Beispiel", "Prof. Dr. Max Mustermann"]))
                 mark_paid(purchase, note="Demo-Daten")
-            self.stdout.write(f"Demo-Studentin: {student_email} / Student123! (hat ein M1-Paket mit 2 Prüfern)")
+            self.stdout.write(
+                f"Demo-Studentin: {student_email} / {student_password} (hat ein Test-Paket für M1 mit 2 Prüfern)"
+            )

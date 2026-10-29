@@ -177,6 +177,11 @@ class Protocol(models.Model):
     file = models.FileField("Datei", storage=protocol_storage, upload_to=protocol_upload_path, blank=True, max_length=255)
     original_filename = models.CharField("Ursprünglicher Dateiname", max_length=255, blank=True)
     file_size = models.PositiveIntegerField("Dateigröße", default=0)
+    file_sha256 = models.CharField("Prüfsumme der Datei", max_length=64, blank=True, db_index=True)
+    file_text = models.TextField(
+        "Text aus der Datei", blank=True, editable=False,
+        help_text="Automatisch ausgelesen (PDF/TXT) – für Suche und Kopie-Erkennung.",
+    )
     grade = models.CharField("Note", max_length=20, blank=True)
     status = models.CharField("Status", max_length=20, choices=STATUS_CHOICES, default=STATUS_PUBLISHED, db_index=True)
     source = models.CharField("Herkunft", max_length=20, choices=SOURCE_CHOICES, default=SOURCE_ADMIN)

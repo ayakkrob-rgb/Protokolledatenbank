@@ -1,5 +1,14 @@
 from django.contrib import admin
-from django.urls import include, path
+from django.contrib.auth.views import redirect_to_login
+from django.urls import include, path, reverse
+
+
+def _admin_login(request, extra_context=None):
+    """Der Expertenmodus nutzt die normale Anmeldung (mit Schutz gegen das Durchprobieren von Passwörtern)."""
+    return redirect_to_login(request.GET.get("next", "/expertenmodus/"), reverse("accounts:login"))
+
+
+admin.site.login = _admin_login
 
 admin.site.site_header = "Protokolldatenbank – Expertenmodus"
 admin.site.site_title = "Expertenmodus"

@@ -77,11 +77,14 @@ def free_slots(purchase, site):
 
 
 def add_examiners_to_package(purchase, examiners, site, actor=None):
-    if not purchase.is_active:
-        raise PurchaseError("Dieses Paket ist nicht aktiv.")
-    if len(examiners) > free_slots(purchase, site):
-        raise PurchaseError("In diesem Paket ist nicht genug Platz für so viele Prüfer.")
-    purchase.examiners.add(*examiners)
+    with transaction.atomic():
+        # Zeile sperren, damit parallele Anfragen das Prüfer-Limit nicht überschreiten können.
+        locked = Purchase.objects.select_for_update().get(pk=purchase.pk)
+        if not locked.is_active:
+            raise PurchaseError("Dieses Paket ist nicht aktiv.")
+        if len(examiners) > free_slots(locked, site):
+            raise PurchaseError("In diesem Paket ist nicht genug Platz für so viele Prüfer.")
+        locked.examiners.add(*examiners)
     audit(
         "paket.erweitert",
         f"{purchase.number}: Prüfer hinzugefügt ({', '.join(e.name for e in examiners)})",
@@ -215,10 +218,31 @@ def _get(obj, key, default=None):
     return getattr(obj, key, default)
 
 
+def _metadata_value(obj, key):
+    """Liest einen Metadaten-Wert – aus einem dict (Webhook) oder einem StripeObject (API)."""
+    metadata = _get(obj, "metadata")
+    if not metadata:
+        return None
+    if isinstance(metadata, dict):
+        return metadata.get(key)
+    try:
+        return metadata[key]
+    except (KeyError, TypeError):
+        return getattr(metadata, key, None)
+
+
 def _purchase_for_session(session):
-    ref = _get(session, "client_reference_id") or (_get(session, "metadata") or {}).get("purchase_id")
+    refs = {str(ref) for ref in (_get(session, "client_reference_id"), _metadata_value(session, "purchase_id")) if ref}
+    if len(refs) > 1:
+        audit(
+            "stripe.widerspruechlich",
+            f"Checkout-Session {_get(session, 'id')}: widersprüchliche Paket-Referenzen {sorted(refs)}.",
+            level=AuditLog.LEVEL_ERROR,
+        )
+        return None
     purchase = None
-    if ref and str(ref).isdigit():
+    ref = refs.pop() if refs else ""
+    if ref.isdigit():
         purchase = Purchase.objects.filter(pk=int(ref)).first()
     if purchase is None and _get(session, "id"):
         purchase = Purchase.objects.filter(stripe_session_id=_get(session, "id")).first()
@@ -234,12 +258,15 @@ def sync_checkout_session(session, source="redirect"):
     payment_status = _get(session, "payment_status")
     if payment_status in ("paid", "no_payment_required"):
         amount_total = _get(session, "amount_total")
-        if amount_total is not None and int(amount_total) != purchase.amount_cents:
+        currency = (_get(session, "currency") or purchase.currency or "").lower()
+        if amount_total is None or int(amount_total) != purchase.amount_cents or currency != purchase.currency:
             audit(
                 "zahlung.betrag_abweichend",
-                f"{purchase.number}: Stripe meldet {format_eur(amount_total)}, erwartet {format_eur(purchase.amount_cents)}.",
-                level=AuditLog.LEVEL_WARNING,
+                f"{purchase.number}: Stripe meldet {amount_total} {currency}, erwartet {purchase.amount_cents} "
+                f"{purchase.currency} – Zahlung NICHT verbucht, bitte im Stripe-Dashboard prüfen.",
+                level=AuditLog.LEVEL_ERROR,
             )
+            return purchase
         mark_paid(
             purchase,
             payment_intent=stripe_gateway.object_id(_get(session, "payment_intent")),
@@ -310,24 +337,37 @@ def reward_uploads(protocols, actor=None):
         if protocol.source != Protocol.SOURCE_UPLOAD or protocol.uploaded_by_id is None:
             continue
         groups.setdefault(protocol.submission_key or f"single-{protocol.pk}", []).append(protocol)
-    for key, group in groups.items():
+    for group in groups.values():
         first = group[0]
-        already = Purchase.objects.filter(refund_protocol__in=[p.pk for p in group])
-        if first.submission_key:
-            already = Purchase.objects.filter(refund_protocol__submission_key=first.submission_key)
-        if already.exists():
-            results.append(RefundResult(already.first(), "already"))
-            continue
         exam = first.examiner.exam
-        purchase = eligible_purchase(first.uploaded_by, exam)
-        if purchase is None:
-            results.append(RefundResult(None, "none", message=f"Kein erstattungsfähiges Paket für {exam.code}."))
+        with transaction.atomic():
+            # Alle Pakete dieser Person für die Prüfung sperren: parallele Freigaben derselben
+            # Einsendung dürfen nicht zwei verschiedene Pakete erstatten.
+            list(
+                Purchase.objects.select_for_update()
+                .filter(user_id=first.uploaded_by_id, exam=exam)
+                .values_list("pk", flat=True)
+            )
+            if first.submission_key:
+                already = Purchase.objects.filter(refund_protocol__submission_key=first.submission_key)
+            else:
+                already = Purchase.objects.filter(refund_protocol__in=[p.pk for p in group])
+            if already.exists():
+                results.append(RefundResult(already.first(), "already"))
+                continue
+            purchase = eligible_purchase(first.uploaded_by, exam)
+            if purchase is None:
+                results.append(RefundResult(None, "none", message=f"Kein erstattungsfähiges Paket für {exam.code}."))
+                continue
+            amount = min(exam.refund_cents(site), purchase.amount_cents - purchase.refunded_cents)
+            if amount <= 0:
+                results.append(RefundResult(purchase, "none"))
+                continue
+            claimed = _claim_refund(purchase, amount, first, [Purchase.REFUND_NONE])
+        if not claimed:
+            results.append(RefundResult(purchase, "already"))
             continue
-        amount = min(exam.refund_cents(site), purchase.amount_cents - purchase.refunded_cents)
-        if amount <= 0:
-            results.append(RefundResult(purchase, "none"))
-            continue
-        results.append(refund_purchase(purchase, amount, protocol=first, actor=actor, reason="Upload"))
+        results.append(_execute_refund(purchase, amount, actor=actor, reason="Upload"))
     return results
 
 
@@ -337,20 +377,28 @@ def _stripe_refunded_total(payment_intent, site):
     return sum(r.amount for r in refunds.data if r.status in ("succeeded", "pending", "requires_action"))
 
 
-def refund_purchase(purchase, amount_cents, *, protocol=None, actor=None, reason="", revoke=False, allow_after_refund=False):
-    """Erstattet ``amount_cents`` eines Pakets – je nach Zahlungsart über Stripe, simuliert oder manuell."""
-    site = SiteSettings.get()
-    allowed_from = [Purchase.REFUND_NONE, Purchase.REFUND_FAILED]
-    if allow_after_refund:
-        allowed_from.append(Purchase.REFUND_DONE)
+def _claim_refund(purchase, amount_cents, protocol, allowed_from):
+    """Setzt das Paket atomar auf „Wird bearbeitet“. Nur wer den Zustand umschaltet, darf erstatten."""
     claim = {"refund_status": Purchase.REFUND_PROCESSING, "refund_requested_cents": amount_cents, "refund_error": ""}
     if protocol is not None:
         claim["refund_protocol"] = protocol
     claimed = Purchase.objects.filter(pk=purchase.pk, refund_status__in=allowed_from).update(**claim)
     purchase.refresh_from_db()
-    if not claimed:
-        return RefundResult(purchase, "already", message="Für dieses Paket läuft bereits eine Erstattung oder sie ist erledigt.")
+    return bool(claimed)
 
+
+def refund_purchase(purchase, amount_cents, *, protocol=None, actor=None, reason="", revoke=False, allow_after_refund=False):
+    """Erstattet ``amount_cents`` eines Pakets – je nach Zahlungsart über Stripe, simuliert oder manuell."""
+    allowed_from = [Purchase.REFUND_NONE, Purchase.REFUND_FAILED]
+    if allow_after_refund:
+        allowed_from.append(Purchase.REFUND_DONE)
+    if not _claim_refund(purchase, amount_cents, protocol, allowed_from):
+        return RefundResult(purchase, "already", message="Für dieses Paket läuft bereits eine Erstattung oder sie ist erledigt.")
+    return _execute_refund(purchase, amount_cents, actor=actor, reason=reason, revoke=revoke)
+
+
+def _execute_refund(purchase, amount_cents, *, actor=None, reason="", revoke=False):
+    site = SiteSettings.get()
     status, error, refund_id = "refunded", "", ""
     if purchase.provider == Purchase.PROVIDER_SIMULATION:
         refund_id = f"sim_re_{uuid.uuid4().hex[:16]}"
@@ -417,6 +465,37 @@ def refund_purchase(purchase, amount_cents, *, protocol=None, actor=None, reason
             {"purchase": purchase, "amount": format_eur(amount_cents), "error": error},
         )
     return RefundResult(purchase, status, amount_cents, error)
+
+
+def reconcile_refund(purchase, actor):
+    """Löst eine hängengebliebene Erstattung („Wird bearbeitet“) auf, z. B. nach einem Serverabbruch.
+
+    Bei Stripe wird nachgesehen, ob das Geld bereits erstattet wurde; sonst wird die
+    Erstattung als fehlgeschlagen markiert und kann erneut ausgelöst werden.
+    """
+    if purchase.refund_status != Purchase.REFUND_PROCESSING:
+        return "Für dieses Paket läuft keine Erstattung."
+    amount = purchase.refund_requested_cents
+    done = False
+    if purchase.provider == Purchase.PROVIDER_STRIPE and purchase.stripe_payment_intent:
+        try:
+            total = _stripe_refunded_total(purchase.stripe_payment_intent, SiteSettings.get())
+        except (stripe.StripeError, stripe_gateway.StripeNotConfigured) as exc:
+            return f"Stripe konnte nicht abgefragt werden: {getattr(exc, 'user_message', None) or exc}"
+        done = total >= purchase.refunded_cents + amount
+    if done:
+        purchase.refund_status = Purchase.REFUND_DONE
+        purchase.refunded_cents += amount
+        purchase.refunded_at = timezone.now()
+        purchase.refund_requested_cents = 0
+        message = f"Stripe hat {format_eur(amount)} bereits erstattet – als erledigt verbucht."
+    else:
+        purchase.refund_status = Purchase.REFUND_FAILED
+        purchase.refund_error = "Die Erstattung wurde unterbrochen. Bitte erneut auslösen."
+        message = "Keine abgeschlossene Erstattung gefunden – als fehlgeschlagen markiert, du kannst sie jetzt erneut auslösen."
+    purchase.save()
+    audit("erstattung.abgeglichen", f"{purchase.number}: {message}", actor=actor)
+    return message
 
 
 def mark_manual_refund_done(purchase, actor):

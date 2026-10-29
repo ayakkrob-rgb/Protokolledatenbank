@@ -80,3 +80,22 @@ class SeedTests(TestCase):
                 self.assertTrue(3 <= count <= 4)
         self.assertEqual(Protocol.objects.count(), Examiner.objects.count() * 2)
         self.assertTrue(Protocol.objects.exclude(file="").exists())
+        self.assertTrue(Protocol.objects.exclude(file_text="").exists())
+
+    def test_seed_does_not_return_after_deletion(self):
+        call_command("seed_demo", verbosity=0, stdout=io.StringIO())
+        Exam.objects.filter(code="M2").update(is_active=False)
+        Protocol.objects.all().delete()
+        call_command("seed_demo", verbosity=0, stdout=io.StringIO())
+        self.assertFalse(Protocol.objects.exists())
+
+    def test_no_demo_student_in_stripe_mode(self):
+        from accounts.models import User
+
+        site = SiteSettings.get()
+        site.payment_mode = SiteSettings.PAYMENT_STRIPE
+        site.save()
+        call_command("seed_demo", verbosity=0, stdout=io.StringIO())
+        self.assertFalse(User.objects.filter(email="student@uni-beispiel.de").exists())
+        admin = User.objects.get(is_staff=True)
+        self.assertFalse(admin.check_password("Admin123!"))  # kein bekanntes Passwort außerhalb von DEBUG

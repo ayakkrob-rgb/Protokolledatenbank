@@ -12,7 +12,7 @@ def site(request):
         context["admin_badges"] = {
             "pending_protocols": Protocol.objects.filter(status=Protocol.STATUS_PENDING).count(),
             "refund_issues": Purchase.objects.filter(
-                refund_status__in=[Purchase.REFUND_FAILED, Purchase.REFUND_MANUAL_PENDING]
+                refund_status__in=[Purchase.REFUND_FAILED, Purchase.REFUND_MANUAL_PENDING, Purchase.REFUND_PROCESSING]
             ).count(),
         }
     return context

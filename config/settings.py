@@ -198,7 +198,8 @@ SESSION_COOKIE_AGE = 60 * 60 * 24 * 14
 if _site.scheme == "https" and not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-if env_bool("BEHIND_PROXY", False):
+BEHIND_PROXY = env_bool("BEHIND_PROXY", False)
+if BEHIND_PROXY:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     USE_X_FORWARDED_HOST = True
 if env_bool("SECURE_SSL_REDIRECT", False):
@@ -208,7 +209,14 @@ SECURE_HSTS_SECONDS = int(env("HSTS_SECONDS", "0") or 0)
 # SAMEORIGIN ist nötig, damit PDFs in der Protokollansicht eingebettet angezeigt werden können.
 SILENCED_SYSTEM_CHECKS = ["security.W019"]
 
-CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+# Dateibasierter Cache: wird von allen Gunicorn-Prozessen geteilt (wichtig für die Login-Sperre).
+CACHES = {
+    "default": (
+        {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}
+        if TESTING
+        else {"BACKEND": "django.core.cache.backends.filebased.FileBasedCache", "LOCATION": str(DATA_DIR / "cache")}
+    )
+}
 
 LOGGING = {
     "version": 1,

@@ -1,4 +1,8 @@
+import hashlib
+import io
+import logging
 import os
+import re
 import uuid
 
 from django.db import transaction
@@ -9,6 +13,8 @@ from core.audit import audit
 from core.pdf import render_text_pdf, stamp_pdf
 
 from .models import Examiner, Protocol, normalize_person_name
+
+logger = logging.getLogger(__name__)
 
 MAGIC_BYTES = {
     "pdf": (b"%PDF",),
@@ -48,11 +54,79 @@ def validate_upload_file(uploaded, site, enforce_size=True):
     return None
 
 
+def file_sha256(uploaded):
+    digest = hashlib.sha256()
+    for chunk in uploaded.chunks():
+        digest.update(chunk)
+    uploaded.seek(0)
+    return digest.hexdigest()
+
+
+def extract_text(uploaded, max_pages=40, max_chars=200_000):
+    """Liest (bestmöglich) den Text aus PDF- und TXT-Dateien – für Suche und Kopie-Erkennung."""
+    ext = os.path.splitext(uploaded.name)[1].lower()
+    try:
+        uploaded.seek(0)
+        data = uploaded.read()
+        uploaded.seek(0)
+        if ext == ".txt":
+            for encoding in ("utf-8-sig", "cp1252"):
+                try:
+                    return data.decode(encoding)[:max_chars]
+                except UnicodeDecodeError:
+                    continue
+            return ""
+        if ext == ".pdf":
+            from pypdf import PdfReader
+
+            reader = PdfReader(io.BytesIO(data))
+            parts = []
+            for page in reader.pages[:max_pages]:
+                parts.append(page.extract_text() or "")
+                if sum(len(p) for p in parts) > max_chars:
+                    break
+            return "\n".join(parts)[:max_chars]
+    except Exception:  # noqa: BLE001 – beschädigte Dateien sollen den Upload nicht verhindern
+        logger.info("Text konnte nicht aus %s gelesen werden", uploaded.name)
+    return ""
+
+
 def attach_file(protocol, uploaded, filename=None):
     name = filename or uploaded.name
     protocol.original_filename = get_valid_filename(os.path.basename(name))[:255] or "protokoll"
     protocol.file_size = uploaded.size
+    protocol.file_sha256 = file_sha256(uploaded)
+    protocol.file_text = extract_text(uploaded)
     protocol.file.save(protocol.original_filename, uploaded, save=False)
+
+
+_WORD_RE = re.compile(r"[a-zäöüß0-9]+")
+
+
+def _shingles(text, size=5):
+    words = _WORD_RE.findall((text or "").lower())
+    return {" ".join(words[i:i + size]) for i in range(max(0, len(words) - size + 1))}
+
+
+def find_copied_protocol(text, threshold=0.75):
+    """Findet ein vorhandenes Protokoll (aus allen Prüfungen), das (fast) wortgleich ist.
+
+    Verglichen werden Folgen von je fünf Wörtern in beide Richtungen, damit auch eine Kopie
+    mit ein paar ergänzten Sätzen oder ein heruntergeladenes (gekennzeichnetes) PDF erkannt wird.
+    """
+    new = _shingles(text)
+    if len(new) < 10:
+        return None
+    candidates = Protocol.objects.values_list("pk", "content", "file_text")
+    for pk, content, file_text in candidates.iterator():
+        for existing_text in (content, file_text):
+            existing = _shingles(existing_text)
+            if len(existing) < 10:
+                continue
+            common = len(new & existing)
+            if common / len(new) >= threshold or common / len(existing) >= threshold:
+                return pk
+    return None
 
 
 def find_examiner(exam, name):

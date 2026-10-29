@@ -51,7 +51,9 @@ Dann <http://localhost:8000> öffnen. Die Beispieldaten enthalten M1, M2 und M3 
 | Admin | `admin@uni-beispiel.de` | `Admin123!` |
 | Studentin mit M1-Paket (2 Prüfer) | `student@uni-beispiel.de` | `Student123!` |
 
-Zahlungen und E-Mails sind im Simulationsmodus: Statt Stripe erscheint eine Test-Bezahlseite, und Bestätigungslinks werden direkt auf der Seite und im Adminbereich unter **Postausgang** angezeigt. Zum Registrieren eine Adresse wie `irgendwer@uni-beispiel.de` verwenden.
+Zahlungen und E-Mails sind im Simulationsmodus: Statt Stripe erscheint eine Test-Bezahlseite, und E-Mails werden nicht verschickt, sondern im Adminbereich unter **Postausgang** gespeichert. Im lokalen Entwicklungsmodus (`DEBUG=1`) wird der Bestätigungslink nach der Registrierung zusätzlich direkt angezeigt. Zum Registrieren eine Adresse wie `irgendwer@uni-beispiel.de` verwenden.
+
+> Auf einem echten Server (`DEBUG=0`) werden Links aus E-Mails aus Sicherheitsgründen **nie** auf der Seite angezeigt – sonst könnte jeder fremde Konten übernehmen. Im Testbetrieb ohne E-Mail-Server findet ein Admin die Links im Postausgang oder schaltet Konten unter **Nutzer** direkt frei.
 
 ---
 
@@ -68,7 +70,7 @@ nano .env        # SECRET_KEY, SITE_URL, ADMIN_EMAIL, ADMIN_PASSWORD eintragen
 docker compose up -d --build
 ```
 
-Beim Start werden automatisch die Datenbank angelegt, das Admin-Konto aus `ADMIN_EMAIL`/`ADMIN_PASSWORD` erstellt und – wenn `DEMO_DATA=1` – die Beispieldaten geladen. Die Daten (SQLite-Datenbank und hochgeladene Dateien) liegen im Docker-Volume `protokolle-daten`.
+Beim Start werden automatisch die Datenbank angelegt, das Admin-Konto aus `ADMIN_EMAIL`/`ADMIN_PASSWORD` erstellt und – wenn `DEMO_DATA=1` – die Beispieldaten geladen. Beispieldaten werden nur angelegt, solange es noch keine Prüfungen gibt; einmal gelöscht, kommen sie also nicht zurück. Das Demo-Konto für Studierende bekommt auf dem Server ein Zufallspasswort, das im Log steht (`docker compose logs web`). Die Daten (SQLite-Datenbank und hochgeladene Dateien) liegen im Docker-Volume `protokolle-daten`.
 
 Der Container lauscht nur lokal auf Port 8000. Davor gehört ein Webserver mit HTTPS, z. B. **Caddy** (holt sich das Zertifikat automatisch):
 
@@ -130,7 +132,7 @@ Die Übersichtsseite im Adminbereich zeigt offene Punkte automatisch als Hinweis
 3. **Einstellungen → Rechtliches:** Impressum, Datenschutzerklärung und Nutzungsbedingungen anpassen. Die mitgelieferten Texte sind nur Muster – bitte (z. B. vom AStA/StuRa oder der Rechtsabteilung) prüfen lassen.
 4. **Einstellungen → E-Mail:** SMTP einrichten und eine Test-E-Mail schicken (siehe Abschnitt 5).
 5. **Einstellungen → Zahlungen:** Stripe anbinden und „Verbindung testen“ (siehe Abschnitt 4).
-6. **Prüfungen & Fächer / Prüfer:** Testprüfer und Beispielprotokolle löschen (oder die Datenbank neu aufsetzen ohne `DEMO_DATA`) und den Altbestand importieren (Abschnitt 6).
+6. **Prüfungen & Fächer / Prüfer / Nutzer:** Testprüfer, Beispielprotokolle und das Demo-Konto `student@uni-beispiel.de` löschen (oder die Datenbank ohne `DEMO_DATA` neu aufsetzen) und den Altbestand importieren (Abschnitt 6).
 7. Einmal mit einem echten Studierenden-Konto komplett durchspielen: registrieren, bestätigen, kaufen, hochladen, Erstattung prüfen.
 8. Nach dem Umstellen auf Stripe unter **Zahlungen → „Alle Test-Pakete sperren“** die im Simulationsbetrieb „gekauften“ Pakete deaktivieren. Die Simulations-Bezahlseite ist dann automatisch gesperrt.
 
@@ -237,7 +239,7 @@ Erreichbar über **Verwaltung** in der Kopfzeile (nur für Admin-Konten).
 4. Nach der Prüfung lädt die Person ihr Protokoll hoch – pro Prüfer ein Abschnitt, als Text oder Datei. Neue Prüfer werden automatisch angelegt.
 5. Sobald das Protokoll veröffentlicht ist (sofort oder nach Freigabe), erstattet die Seite **einmal pro Paket** den eingestellten Betrag über Stripe und schickt eine Bestätigung per E-Mail. Erstattet wird nur ein Paket derselben Prüfung.
 
-**Missbrauchsschutz:** Für Text-Protokolle gilt eine Mindestlänge, Dateien werden auf ihren tatsächlichen Typ geprüft, und pro Paket gibt es nur eine Erstattung. Wenn jemand versucht, mit unbrauchbaren Uploads an die Erstattung zu kommen, schaltet **Einstellungen → Uploads → „Uploads vor Veröffentlichung prüfen“** ein – dann wird erst nach eurer Freigabe veröffentlicht und erstattet.
+**Missbrauchsschutz:** Für Text-Protokolle gilt eine Mindestlänge, Dateien werden auf ihren tatsächlichen Typ geprüft, pro Paket gibt es nur eine Erstattung, und Uploads, die (fast) wortgleich mit einem vorhandenen Protokoll sind – auch ein heruntergeladenes PDF –, werden abgelehnt. Wenn jemand versucht, mit unbrauchbaren Uploads an die Erstattung zu kommen, schaltet **Einstellungen → Uploads → „Uploads vor Veröffentlichung prüfen“** ein – dann wird erst nach eurer Freigabe veröffentlicht und erstattet.
 
 **Weitergabeschutz:** Heruntergeladene PDFs erhalten auf jeder Seite eine Kennzeichnung mit der E-Mail-Adresse des Käufers (abschaltbar). Protokolldateien liegen außerhalb des öffentlichen Webverzeichnisses und werden nur nach Prüfung der Berechtigung ausgeliefert.
 

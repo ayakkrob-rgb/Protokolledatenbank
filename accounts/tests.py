@@ -2,7 +2,7 @@ import re
 
 from django.core import mail
 from django.core.cache import cache
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from core.models import EmailLog, SiteSettings
@@ -62,10 +62,24 @@ class RegistrationTests(TestCase):
         response = self.client.get(path)
         self.assertRedirects(response, reverse("accounts:login"))
 
-    def test_simulated_link_is_shown(self):
+    @override_settings(DEBUG=True)
+    def test_simulated_link_is_shown_in_development(self):
         self.register("erika@uni-beispiel.de")
         response = self.client.get(reverse("accounts:register_done"))
         self.assertContains(response, "/konto/bestaetigen/")
+
+    def test_simulated_links_are_never_shown_in_production(self):
+        self.register("erika@uni-beispiel.de")
+        response = self.client.get(reverse("accounts:register_done"))
+        self.assertNotContains(response, "/konto/bestaetigen/")
+        self.assertContains(response, "Postausgang")
+        # Passwort-Link eines fremden Kontos darf nicht auf der Seite landen
+        User.objects.create_superuser("chef@uni-beispiel.de", "Geheim!12345", name="Chef")
+        response = self.client.post(reverse("accounts:password_reset"), {"email": "chef@uni-beispiel.de"})
+        self.assertNotContains(response, "/konto/passwort-neu/")
+        response = self.client.post(reverse("accounts:resend_verification"), {"email": "erika@uni-beispiel.de"})
+        response = self.client.get(reverse("accounts:register_done"))
+        self.assertNotContains(response, "/konto/bestaetigen/")
 
     def test_real_mail_mode_sends_via_smtp_backend(self):
         self.site.email_mode = SiteSettings.EMAIL_SMTP
@@ -112,6 +126,31 @@ class LoginAndPasswordTests(TestCase):
             self.client.post(reverse("accounts:login"), {"email": "max@uni-beispiel.de", "password": "falsch"})
         response = self.client.post(reverse("accounts:login"), {"email": "max@uni-beispiel.de", "password": "SehrGeheim!42"})
         self.assertContains(response, "Zu viele Anmeldeversuche")
+
+    def test_forwarded_header_cannot_bypass_rate_limit(self):
+        for i in range(11):
+            response = self.client.post(
+                reverse("accounts:login"),
+                {"email": "max@uni-beispiel.de", "password": "falsch"},
+                HTTP_X_FORWARDED_FOR=f"10.0.0.{i}",
+            )
+        self.assertContains(response, "Zu viele Anmeldeversuche")
+
+    @override_settings(BEHIND_PROXY=True)
+    def test_client_ip_behind_proxy_uses_last_entry(self):
+        from django.test import RequestFactory
+
+        from core.utils import client_ip
+
+        request = RequestFactory().get("/", HTTP_X_FORWARDED_FOR="1.2.3.4, 203.0.113.9", REMOTE_ADDR="127.0.0.1")
+        self.assertEqual(client_ip(request), "203.0.113.9")
+        with self.settings(BEHIND_PROXY=False):
+            self.assertEqual(client_ip(request), "127.0.0.1")
+
+    def test_admin_login_uses_protected_login(self):
+        response = self.client.get("/expertenmodus/login/?next=/expertenmodus/")
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response["Location"].startswith(reverse("accounts:login")))
 
     def test_blocked_user_cannot_login(self):
         self.user.is_active = False

@@ -29,7 +29,7 @@ from django.utils.text import get_valid_filename
 from core.audit import audit
 
 from .models import Exam, Protocol, Subject
-from .services import get_or_create_examiner
+from .services import attach_file, file_sha256, get_or_create_examiner
 
 IGNORED_NAMES = {".ds_store", "thumbs.db", "desktop.ini", "__macosx"}
 MAX_ZIP_FILES = 20000
@@ -212,7 +212,10 @@ def _import_file(report, file_path, exam, subject_name, examiner_name, status, a
 
         filename = get_valid_filename(file_path.name)[:255]
         size = file_path.stat().st_size
-        if Protocol.objects.filter(examiner=examiner, original_filename=filename, file_size=size).exists():
+        with file_path.open("rb") as handle:
+            digest = file_sha256(File(handle, name=filename))
+        duplicate = Protocol.objects.filter(examiner=examiner, original_filename=filename, file_size=size)
+        if duplicate.exists() or Protocol.objects.filter(examiner=examiner, file_sha256=digest).exists():
             report.skipped += 1
             report.skipped_files.append(file_path.name)
             return
@@ -230,9 +233,10 @@ def _import_file(report, file_path, exam, subject_name, examiner_name, status, a
         if file_path.suffix.lower() == ".txt":
             protocol.content = _read_text(file_path)
             protocol.title = os.path.splitext(file_path.name)[0][:200]
+            protocol.file_sha256 = digest
         else:
             with file_path.open("rb") as handle:
-                protocol.file.save(filename, File(handle), save=False)
+                attach_file(protocol, File(handle, name=filename))
         protocol.save()
         report.imported += 1
 

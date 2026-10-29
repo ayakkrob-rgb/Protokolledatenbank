@@ -197,6 +197,19 @@ class AdminActionTests(BaseTestCase):
         self.assertEqual(simulated.status, Purchase.STATUS_REVOKED)
         self.assertEqual(real.status, Purchase.STATUS_PAID)
 
+    def test_csv_export_neutralizes_formulas(self):
+        evil = Examiner.objects.create(exam=self.exam, name='=HYPERLINK("http://boese.example","x")')
+        make_paid_purchase(self.student, self.exam, [evil])
+        content = self.client.get(reverse("verwaltung:purchase_export")).content.decode("utf-8-sig")
+        self.assertIn("'=HYPERLINK", content)
+
+    def test_next_parameter_only_allows_local_targets(self):
+        protocol = make_protocol(self.examiners[0], status=Protocol.STATUS_PENDING)
+        response = self.client.post(
+            reverse("verwaltung:protocol_approve", args=[protocol.pk]), {"next": "https://boese.example/"}
+        )
+        self.assertEqual(response["Location"], reverse("verwaltung:moderation"))
+
     def test_csv_export(self):
         make_paid_purchase(self.student, self.exam, self.examiners[:2])
         response = self.client.get(reverse("verwaltung:purchase_export"))

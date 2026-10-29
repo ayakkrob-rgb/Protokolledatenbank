@@ -2,8 +2,11 @@ from django import forms
 from django.forms import BaseFormSet, formset_factory
 from django.utils import timezone
 
-from .models import Examiner, Subject
-from .services import find_examiner, validate_upload_file
+from .models import Examiner, Protocol, Subject
+from core.audit import audit
+from core.models import AuditLog
+
+from .services import extract_text, file_sha256, find_copied_protocol, find_examiner, validate_upload_file
 
 NEW_EXAMINER = "new"
 
@@ -116,7 +119,29 @@ class ProtocolSectionForm(forms.Form):
                 f"Bitte schreibe dein Protokoll etwas ausführlicher (mindestens {self.site.min_text_length} Zeichen) "
                 f"oder lade eine Datei hoch.",
             )
+        if not self.errors:
+            self._check_for_copies(upload, content)
         return data
+
+    def _check_for_copies(self, upload, content):
+        """Lehnt Uploads ab, die nur ein bereits vorhandenes Protokoll wiederholen."""
+        duplicate = None
+        if upload:
+            digest = file_sha256(upload)
+            duplicate = Protocol.objects.filter(file_sha256=digest).values_list("pk", flat=True).first()
+        if duplicate is None:
+            text = content + "\n" + (extract_text(upload) if upload else "")
+            duplicate = find_copied_protocol(text)
+        if duplicate is not None:
+            audit(
+                "upload.kopie_erkannt",
+                f"Upload für {self.exam.code} abgelehnt: stimmt mit Protokoll #{duplicate} überein.",
+                level=AuditLog.LEVEL_WARNING,
+            )
+            raise forms.ValidationError(
+                "Dieses Protokoll stimmt weitgehend mit einem bereits vorhandenen Protokoll überein. "
+                "Bitte lade nur dein eigenes Gedächtnisprotokoll hoch."
+            )
 
     @property
     def examiner_key(self):

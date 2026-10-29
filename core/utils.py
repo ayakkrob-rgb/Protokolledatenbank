@@ -33,7 +33,15 @@ def absolute_url(path_or_name, request=None, *args, **kwargs):
 
 
 def client_ip(request):
-    forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    """IP-Adresse des Clients für Rate-Limits.
+
+    Den Header X-Forwarded-For kann jeder Client selbst setzen. Nur hinter einem
+    Reverse-Proxy (BEHIND_PROXY=1) wird der letzte Eintrag verwendet – den hängt
+    der eigene Proxy an und er ist nicht fälschbar.
+    """
+    if settings.BEHIND_PROXY:
+        forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+        entries = [part.strip() for part in forwarded.split(",") if part.strip()]
+        if entries:
+            return entries[-1]
     return request.META.get("REMOTE_ADDR", "")

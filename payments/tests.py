@@ -91,6 +91,12 @@ class SimulatedPurchaseTests(BaseTestCase):
         # Paket voll – kein weiteres Hinzufügen
         self.assertIsNone(services.package_with_free_slots(self.student, self.exam, self.site))
 
+    def test_package_limit_is_enforced_when_adding(self):
+        purchase = make_paid_purchase(self.student, self.exam, self.examiners[:3])
+        with self.assertRaises(services.PurchaseError):
+            services.add_examiners_to_package(purchase, self.examiners[3:5], self.site)
+        self.assertEqual(purchase.examiners.count(), 3)
+
     def test_cancel_simulation(self):
         self.login()
         purchase = services.create_purchase(self.student, self.exam, self.examiners[:1], self.site)
@@ -263,7 +269,7 @@ class StripeMockTests(BaseTestCase):
         purchase = services.create_purchase(self.student, self.exam, self.examiners[:1], self.site)
         session = mock.Mock(
             id="cs_test_1", client_reference_id=str(purchase.pk), metadata={}, payment_status="paid",
-            payment_intent="pi_123", amount_total=3000,
+            payment_intent="pi_123", amount_total=3000, currency="eur",
         )
         self.login()
         with mock.patch.object(stripe_gateway, "retrieve_checkout_session", return_value=session):
@@ -272,6 +278,59 @@ class StripeMockTests(BaseTestCase):
         purchase.refresh_from_db()
         self.assertTrue(purchase.is_paid)
         self.assertEqual(purchase.stripe_payment_intent, "pi_123")
+
+    def test_amount_mismatch_is_not_booked(self):
+        purchase = services.create_purchase(self.student, self.exam, self.examiners[:1], self.site)
+        services.sync_checkout_session(
+            {"id": "cs_1", "client_reference_id": str(purchase.pk), "payment_status": "paid",
+             "payment_intent": "pi_1", "amount_total": 100, "currency": "eur"}
+        )
+        purchase.refresh_from_db()
+        self.assertEqual(purchase.status, Purchase.STATUS_PENDING)
+
+    def test_conflicting_references_are_ignored(self):
+        purchase = services.create_purchase(self.student, self.exam, self.examiners[:1], self.site)
+        result = services.sync_checkout_session(
+            {"id": "cs_1", "client_reference_id": str(purchase.pk), "metadata": {"purchase_id": "999"},
+             "payment_status": "paid", "payment_intent": "pi_1", "amount_total": 3000, "currency": "eur"}
+        )
+        self.assertIsNone(result)
+        purchase.refresh_from_db()
+        self.assertEqual(purchase.status, Purchase.STATUS_PENDING)
+
+    def test_stripe_object_metadata_lookup(self):
+        from stripe._stripe_object import StripeObject
+
+        purchase = services.create_purchase(self.student, self.exam, self.examiners[:1], self.site)
+        session = StripeObject.construct_from(
+            {"id": "cs_9", "client_reference_id": None, "metadata": {"purchase_id": str(purchase.pk)},
+             "payment_status": "paid", "payment_intent": "pi_9", "amount_total": 3000, "currency": "eur"},
+            "sk_test_123",
+        )
+        services.sync_checkout_session(session)
+        purchase.refresh_from_db()
+        self.assertTrue(purchase.is_paid)
+
+    def test_stuck_refund_can_be_reconciled(self):
+        purchase = make_paid_purchase(
+            self.student, self.exam, self.examiners[:1], provider=Purchase.PROVIDER_STRIPE, stripe_payment_intent="pi_9",
+            refund_status=Purchase.REFUND_PROCESSING, refund_requested_cents=2900,
+        )
+        with mock.patch.object(services, "_stripe_refunded_total", return_value=2900):
+            services.reconcile_refund(purchase, self.admin)
+        purchase.refresh_from_db()
+        self.assertEqual(purchase.refund_status, Purchase.REFUND_DONE)
+        self.assertEqual(purchase.refunded_cents, 2900)
+
+        other = make_paid_purchase(
+            self.student, self.exam, self.examiners[1:2], provider=Purchase.PROVIDER_STRIPE, stripe_payment_intent="pi_8",
+            refund_status=Purchase.REFUND_PROCESSING, refund_requested_cents=2900,
+        )
+        with mock.patch.object(services, "_stripe_refunded_total", return_value=0):
+            services.reconcile_refund(other, self.admin)
+        other.refresh_from_db()
+        self.assertEqual(other.refund_status, Purchase.REFUND_FAILED)
+        self.assertTrue(other.can_be_refunded)
 
     def test_unpaid_return_keeps_pending(self):
         purchase = services.create_purchase(self.student, self.exam, self.examiners[:1], self.site)
@@ -301,7 +360,7 @@ class StripeMockTests(BaseTestCase):
             "id": "evt_1",
             "type": "checkout.session.completed",
             "data": {"object": {"id": "cs_1", "client_reference_id": str(purchase.pk), "payment_status": "paid",
-                                "payment_intent": "pi_777", "amount_total": 3000}},
+                                "payment_intent": "pi_777", "amount_total": 3000, "currency": "eur"}},
         }
         response = self.post_webhook(event)
         self.assertEqual(response.status_code, 200)
@@ -406,7 +465,7 @@ class _FakeStripe(BaseHTTPRequestHandler):
         _FakeStripe.requests.append(("GET", self.path, {}, dict(self.headers)))
         if self.path.startswith("/v1/checkout/sessions/"):
             self._send({"id": "cs_test_fake", "object": "checkout.session", "payment_status": "paid",
-                        "client_reference_id": "1", "payment_intent": "pi_fake", "amount_total": 3000})
+                        "client_reference_id": "1", "payment_intent": "pi_fake", "amount_total": 3000, "currency": "eur"})
         elif self.path.startswith("/v1/refunds"):
             self._send({"object": "list", "data": [], "has_more": False, "url": "/v1/refunds"})
         elif self.path == "/v1/balance":
@@ -462,7 +521,8 @@ class StripeSdkIntegrationTests(BaseTestCase):
         purchase = services.create_purchase(self.student, self.exam, self.examiners[:1], self.site)
         session = stripe_gateway.retrieve_checkout_session("cs_test_fake")
         session_dict = {"id": session.id, "client_reference_id": str(purchase.pk), "payment_status": session.payment_status,
-                        "payment_intent": session.payment_intent, "amount_total": session.amount_total}
+                        "payment_intent": session.payment_intent, "amount_total": session.amount_total,
+                        "currency": session.currency}
         services.sync_checkout_session(session_dict)
         purchase.refresh_from_db()
         self.assertTrue(purchase.is_paid)

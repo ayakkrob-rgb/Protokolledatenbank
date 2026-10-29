@@ -19,7 +19,7 @@ from payments.models import Purchase
 from protocols.models import Exam, Protocol
 
 from .forms import GrantPackageForm, PurchaseEditForm, UserAdminForm, UserCreateForm
-from .helpers import int_or_none, paginate
+from .helpers import csv_safe, int_or_none, paginate
 
 # --- Nutzer ----------------------------------------------------------------------------------
 
@@ -145,7 +145,7 @@ def _filtered_purchases(request):
     if filters["status"]:
         qs = qs.filter(status=filters["status"])
     if filters["erstattung"] == "offen":
-        qs = qs.filter(refund_status__in=[Purchase.REFUND_FAILED, Purchase.REFUND_MANUAL_PENDING])
+        qs = qs.filter(refund_status__in=[Purchase.REFUND_FAILED, Purchase.REFUND_MANUAL_PENDING, Purchase.REFUND_PROCESSING])
     elif filters["erstattung"]:
         qs = qs.filter(refund_status=filters["erstattung"])
     if filters["zahlungsart"]:
@@ -214,12 +214,11 @@ def purchase_export(request):
         return timezone.localtime(value).strftime("%d.%m.%Y %H:%M") if value else ""
 
     for p in qs.order_by("created_at"):
-        writer.writerow(
-            [p.number, dt(p.created_at), dt(p.paid_at), p.email, p.exam.code,
-             ", ".join(e.name for e in p.examiners.all()), p.get_provider_display(), p.get_status_display(),
-             money(p.amount_cents), money(p.refunded_cents), money(p.net_cents), p.get_refund_status_display(),
-             dt(p.refunded_at), p.stripe_payment_intent, p.stripe_refund_id, p.admin_note]
-        )
+        row = [p.number, dt(p.created_at), dt(p.paid_at), p.email, p.exam.code,
+               ", ".join(e.name for e in p.examiners.all()), p.get_provider_display(), p.get_status_display(),
+               money(p.amount_cents), money(p.refunded_cents), money(p.net_cents), p.get_refund_status_display(),
+               dt(p.refunded_at), p.stripe_payment_intent, p.stripe_refund_id, p.admin_note]
+        writer.writerow([csv_safe(cell) for cell in row])
     return response
 
 
@@ -280,6 +279,8 @@ def _purchase_action(request, purchase, action, site):
     elif action == "manual_done" and purchase.refund_status in (Purchase.REFUND_MANUAL_PENDING, Purchase.REFUND_FAILED):
         payment_services.mark_manual_refund_done(purchase, actor)
         messages.success(request, "Erstattung als ausgezahlt markiert.")
+    elif action == "reconcile" and purchase.refund_status == Purchase.REFUND_PROCESSING:
+        messages.info(request, payment_services.reconcile_refund(purchase, actor))
     elif action == "revoke" and purchase.status == Purchase.STATUS_PAID:
         Purchase.objects.filter(pk=purchase.pk).update(status=Purchase.STATUS_REVOKED)
         audit("paket.gesperrt", f"Zugriff für {purchase.number} entzogen", actor=actor)

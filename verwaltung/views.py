@@ -87,7 +87,7 @@ def dashboard(request):
         "examiners": Examiner.objects.filter(is_active=True).count(),
         "examiners_new": Examiner.objects.filter(created_via_upload=True, created_at__gte=since).count(),
         "refund_issues": Purchase.objects.filter(
-            refund_status__in=[Purchase.REFUND_FAILED, Purchase.REFUND_MANUAL_PENDING]
+            refund_status__in=[Purchase.REFUND_FAILED, Purchase.REFUND_MANUAL_PENDING, Purchase.REFUND_PROCESSING]
         ).count(),
     }
     exams = []

@@ -16,7 +16,7 @@ from protocols.models import Exam, Examiner, Protocol, Subject
 from protocols.services import attach_file, publish_protocols, reject_protocol
 
 from .forms import ExamForm, ExaminerForm, ImportForm, MergeExaminerForm, ProtocolAdminForm, RejectForm, SubjectForm
-from .helpers import int_or_none, paginate
+from .helpers import int_or_none, paginate, redirect_next
 
 # --- Prüfungen & Fächer ------------------------------------------------------------
 
@@ -208,7 +208,7 @@ def protocol_list(request):
     source = request.GET.get("herkunft", "")
     if q:
         qs = qs.filter(
-            Q(title__icontains=q) | Q(content__icontains=q) | Q(examiner__name__icontains=q)
+            Q(title__icontains=q) | Q(content__icontains=q) | Q(file_text__icontains=q) | Q(examiner__name__icontains=q)
             | Q(uploaded_by__email__icontains=q) | Q(original_filename__icontains=q)
         )
     if exam_id:
@@ -255,7 +255,7 @@ def protocol_bulk(request):
         for protocol in protocols:
             _delete_protocol(protocol, request.user)
         messages.success(request, f"{len(protocols)} Protokoll(e) gelöscht.")
-    return redirect(request.POST.get("next") or "verwaltung:protocols")
+    return redirect_next(request, "verwaltung:protocols")
 
 
 def _refund_summary(results):
@@ -373,7 +373,7 @@ def protocol_approve(request, pk):
     _notify_reviewed(request, protocol, approved=True)
     audit("protokoll.freigegeben", f"Protokoll #{protocol.pk} ({protocol.examiner.name}) freigegeben", actor=request.user)
     messages.success(request, f"Protokoll freigegeben. {_refund_summary(results)}".strip())
-    return redirect(request.POST.get("next") or "verwaltung:moderation")
+    return redirect_next(request, "verwaltung:moderation")
 
 
 @staff_required
@@ -385,7 +385,7 @@ def protocol_reject(request, pk):
     reject_protocol(protocol, reason, actor=request.user)
     _notify_reviewed(request, protocol, approved=False, reason=reason)
     messages.success(request, "Protokoll abgelehnt. Der Uploader wurde informiert.")
-    return redirect(request.POST.get("next") or "verwaltung:moderation")
+    return redirect_next(request, "verwaltung:moderation")
 
 
 # --- Import -----------------------------------------------------------------------------

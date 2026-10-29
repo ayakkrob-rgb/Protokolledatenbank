@@ -39,7 +39,15 @@ def make_user(email, verified=True, password="SehrGeheim!42", **extra):
     return User.objects.create_user(email=email, password=password, name="Test Person", email_verified=verified, **extra)
 
 
+def unique_text(seed):
+    """Ein eigenständiger Protokolltext (für Upload-Tests – Kopien werden abgelehnt)."""
+    topics = ["Niere", "Leber", "Herz", "Lunge", "Gehirn", "Milz", "Magen", "Haut", "Auge", "Ohr", "Knochen", "Muskel"]
+    words = [f"{topics[(seed + i) % len(topics)]}{seed}x{i}" for i in range(40)]
+    return f"Eigenes Protokoll Nummer {seed}: " + " ".join(words) + " – die Prüfung war fair und gut machbar."
+
+
 def make_protocol(examiner, with_file=False, **extra):
+    file_body = extra.pop("file_body", LONG_TEXT)
     protocol = Protocol(
         examiner=examiner,
         exam_date=extra.pop("exam_date", datetime.date(2025, 3, 12)),
@@ -49,10 +57,10 @@ def make_protocol(examiner, with_file=False, **extra):
         **extra,
     )
     if with_file:
-        pdf = render_text_pdf("Test", ["Meta"], LONG_TEXT)
-        protocol.original_filename = "test.pdf"
-        protocol.file_size = len(pdf)
-        protocol.file.save("test.pdf", ContentFile(pdf), save=False)
+        from protocols.services import attach_file
+
+        pdf = render_text_pdf("Test", ["Meta"], file_body)
+        attach_file(protocol, ContentFile(pdf, name="test.pdf"))
     protocol.save()
     return protocol
 

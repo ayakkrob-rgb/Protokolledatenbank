@@ -10,8 +10,12 @@
     <p class="small muted">Keine E-Mail bekommen? Schau auch im Spam-Ordner nach. Der Link ist 3 Tage gültig.</p>
     {% if simulated_link %}
     <div class="sim-link mt-2">
-      <strong>Testbetrieb:</strong> E-Mails werden gerade nur simuliert. Hier ist dein Bestätigungslink:<br>
+      <strong>Entwicklungsmodus:</strong> E-Mails werden nur simuliert. Hier ist dein Bestätigungslink:<br>
       <a href="{{ simulated_link }}">{{ simulated_link }}</a>
+    </div>
+    {% elif email_simulated %}
+    <div class="sim-link mt-2">
+      <strong>Testbetrieb:</strong> E-Mails werden gerade nur simuliert. Ein Admin findet den Bestätigungslink in der Verwaltung unter „Postausgang“ oder kann dein Konto direkt freischalten.
     </div>
     {% endif %}
     <a class="btn mt-3" href="{% url 'accounts:resend_verification' %}">{% icon "refresh" %} Link erneut senden</a>
