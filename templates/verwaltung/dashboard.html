@@ -1,0 +1,132 @@
+{% extends "verwaltung/base.html" %}
+{% load ui %}
+{% block admin_title %}Übersicht{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Verwaltung</span><h1>Übersicht</h1><p>Alles Wichtige auf einen Blick.</p></div>
+  <div class="actions">
+    <a class="btn" href="{% url 'verwaltung:protocol_create' %}">{% icon "plus" %} Protokoll anlegen</a>
+    <a class="btn btn-primary" href="{% url 'verwaltung:settings' %}">{% icon "settings" %} Einstellungen</a>
+  </div>
+</div>
+
+{% if alerts %}
+<div class="messages">
+  {% for level, icon_name, title, text, tab in alerts %}
+  <div class="alert alert-{{ level }}">{% icon icon_name %}<div><span class="alert-title">{{ title }}</span>{{ text }}{% if tab %} <a href="{% url 'verwaltung:settings' %}#{{ tab }}">Jetzt ändern</a>{% endif %}</div></div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="kpis">
+  <a class="kpi" href="{% url 'verwaltung:moderation' %}">
+    <div class="label">{% icon "shield" %} Offene Freigaben</div>
+    <div class="value">{{ kpis.pending }}</div>
+    <div class="delta">{% if kpis.pending %}Bitte prüfen{% else %}Alles erledigt{% endif %}</div>
+  </a>
+  <a class="kpi" href="{% url 'verwaltung:purchases' %}?erstattung=offen">
+    <div class="label">{% icon "refund" %} Offene Erstattungsprobleme</div>
+    <div class="value">{{ kpis.refund_issues }}</div>
+    <div class="delta">fehlgeschlagen oder manuell auszuzahlen</div>
+  </a>
+  <a class="kpi" href="{% url 'verwaltung:protocols' %}?status=published">
+    <div class="label">{% icon "file-text" %} Veröffentlichte Protokolle</div>
+    <div class="value">{{ kpis.protocols }}</div>
+    <div class="delta">+{{ kpis.protocols_new }} in den letzten 30 Tagen</div>
+  </a>
+  <a class="kpi" href="{% url 'verwaltung:examiners' %}">
+    <div class="label">{% icon "examiner" %} Aktive Prüfer</div>
+    <div class="value">{{ kpis.examiners }}</div>
+    <div class="delta">+{{ kpis.examiners_new }} durch Uploads (30 Tage)</div>
+  </a>
+  <a class="kpi" href="{% url 'verwaltung:users' %}">
+    <div class="label">{% icon "users" %} Nutzer</div>
+    <div class="value">{{ kpis.users }}</div>
+    <div class="delta">{{ kpis.users_verified }} bestätigt · +{{ kpis.users_new }} in 30 Tagen</div>
+  </a>
+  <a class="kpi" href="{% url 'verwaltung:purchases' %}?status=paid">
+    <div class="label">{% icon "package" %} Verkaufte Pakete</div>
+    <div class="value">{{ kpis.packages }}</div>
+    <div class="delta">+{{ kpis.packages_new }} in den letzten 30 Tagen</div>
+  </a>
+  <div class="kpi">
+    <div class="label">{% icon "euro" %} Einnahmen netto</div>
+    <div class="value">{{ kpis.net|eur }}</div>
+    <div class="delta">{{ kpis.revenue|eur }} eingenommen · {{ kpis.refunded|eur }} erstattet</div>
+  </div>
+  <div class="kpi">
+    <div class="label">{% icon "flask" %} Simulierte Pakete</div>
+    <div class="value">{{ kpis.sim_packages }}</div>
+    <div class="delta">Testbetrieb, nicht in den Einnahmen enthalten</div>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <section class="card">
+    <div class="card-head"><h2>Prüfungen</h2><a class="small" href="{% url 'verwaltung:exams' %}">Verwalten</a></div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Prüfung</th><th class="num">Prüfer</th><th class="num">Protokolle</th><th class="num">Pakete</th></tr></thead>
+        <tbody>
+          {% for row in exams %}
+          <tr>
+            <td><a href="{% url 'verwaltung:exam_edit' row.exam.pk %}">{{ row.exam.name }}</a>{% if not row.exam.is_active %} {% badge "inaktiv" %}{% endif %}</td>
+            <td class="num"><a href="{% url 'verwaltung:examiners' %}?pruefung={{ row.exam.pk }}">{{ row.examiners }}</a></td>
+            <td class="num"><a href="{% url 'verwaltung:protocols' %}?pruefung={{ row.exam.pk }}">{{ row.protocols }}</a></td>
+            <td class="num"><a href="{% url 'verwaltung:purchases' %}?pruefung={{ row.exam.pk }}">{{ row.packages }}</a></td>
+          </tr>
+          {% empty %}<tr><td colspan="4" class="muted">Noch keine Prüfungen.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Neueste Pakete</h2><a class="small" href="{% url 'verwaltung:purchases' %}">Alle</a></div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Paket</th><th>Status</th><th class="num">Betrag</th></tr></thead>
+        <tbody>
+          {% for p in recent_purchases %}
+          <tr>
+            <td><a href="{% url 'verwaltung:purchase_detail' p.pk %}">{{ p.number }}</a> · {{ p.exam.code }}<span class="sub truncate">{{ p.email }}</span></td>
+            <td>{% include "verwaltung/_purchase_status.html" %}</td>
+            <td class="num">{{ p.amount_cents|eur }}</td>
+          </tr>
+          {% empty %}<tr><td colspan="3" class="muted">Noch keine Pakete.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Neueste Uploads</h2><a class="small" href="{% url 'verwaltung:protocols' %}?herkunft=upload">Alle</a></div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Prüfer</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for protocol in recent_uploads %}
+          <tr>
+            <td><a href="{% url 'verwaltung:protocol_edit' protocol.pk %}">{{ protocol.examiner.name }}</a> <span class="muted small">· {{ protocol.examiner.exam.code }}</span><span class="sub truncate">{{ protocol.uploaded_by.email|default:"–" }} · {{ protocol.created_at|date:"d.m.Y H:i" }}</span></td>
+            <td>{% include "verwaltung/_protocol_status.html" %}</td>
+          </tr>
+          {% empty %}<tr><td colspan="2" class="muted">Noch keine Uploads von Studierenden.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Logbuch</h2><a class="small" href="{% url 'verwaltung:audit' %}">Alle</a></div>
+    <div class="table-wrap">
+      <table class="table">
+        <tbody>
+          {% for entry in recent_log %}
+          <tr><td class="nowrap small muted">{{ entry.created_at|date:"d.m. H:i" }}</td><td class="small"><span class="log-level {{ entry.level }}"></span> {{ entry.message|truncatechars:110 }}</td></tr>
+          {% empty %}<tr><td class="muted">Noch keine Einträge.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

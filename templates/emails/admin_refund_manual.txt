@@ -1,0 +1,4 @@
+{% autoescape off %}Für das Paket {{ purchase.number }} ({{ purchase.email }}, {{ purchase.exam.code }}) muss eine Erstattung von {{ amount }} manuell ausgezahlt werden (Zahlungsart: {{ purchase.get_provider_display }}).
+
+Bitte nach der Auszahlung in der Verwaltung unter „Zahlungen“ als erledigt markieren.
+{% endautoescape %}

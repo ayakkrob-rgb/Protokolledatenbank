@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Mein Konto{% endblock %}
+{% block container_class %}container-narrow{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Konto</span><h1>Mein Konto</h1><p>{{ user.email }} · registriert seit {{ user.date_joined|date:"d.m.Y" }}</p></div>
+</div>
+
+<section class="card">
+  <div class="card-head"><h2>{% icon "user" %} Persönliche Daten</h2></div>
+  <div class="card-body">
+    <form method="post" class="form-stack">
+      {% csrf_token %}<input type="hidden" name="action" value="profile">
+      {% include "partials/field.html" with field=profile_form.name %}
+      <div class="field"><label>E-Mail-Adresse</label><input type="email" value="{{ user.email }}" disabled><p class="help">Die E-Mail-Adresse kann nur die Fachschaft ändern.</p></div>
+      <button class="btn btn-primary" type="submit">Speichern</button>
+    </form>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>{% icon "key" %} Passwort ändern</h2></div>
+  <div class="card-body">
+    <form method="post" class="form-stack" novalidate>
+      {% csrf_token %}<input type="hidden" name="action" value="password">
+      {% include "partials/form_errors.html" with form=password_form %}
+      {% include "partials/field.html" with field=password_form.old_password %}
+      <div class="field-row">
+        {% include "partials/field.html" with field=password_form.new_password1 %}
+        {% include "partials/field.html" with field=password_form.new_password2 %}
+      </div>
+      <button class="btn btn-primary" type="submit">Passwort ändern</button>
+    </form>
+  </div>
+</section>
+
+<section class="card card-danger">
+  <div class="card-head"><h2>{% icon "trash" %} Konto löschen</h2></div>
+  <div class="card-body">
+    <p class="muted">Dein Konto wird gelöscht und deine persönlichen Daten entfernt. Freigeschaltete Pakete gehen verloren. Hochgeladene Protokolle bleiben anonym in der Datenbank. Kaufbelege bewahren wir wegen gesetzlicher Pflichten auf.</p>
+    <form method="post" class="form-stack" data-confirm="Konto wirklich endgültig löschen?">
+      {% csrf_token %}<input type="hidden" name="action" value="delete">
+      {% include "partials/field.html" with field=delete_form.password %}
+      <button class="btn btn-outline-danger" type="submit">Konto endgültig löschen</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

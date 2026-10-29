@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Link ungültig{% endblock %}
+{% block content %}
+<div class="card auth-card"><div class="card-body text-center">
+  <h1>Der Link ist ungültig oder abgelaufen</h1>
+  <p class="muted">Bestätigungslinks sind 3 Tage gültig und können nur einmal verwendet werden.</p>
+  <a class="btn btn-primary" href="{% url 'accounts:resend_verification' %}">Neuen Link anfordern</a>
+</div></div>
+{% endblock %}

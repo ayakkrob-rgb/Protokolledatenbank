@@ -1,0 +1,19 @@
+{% load ui %}
+<div class="section-card" data-section>
+  <div class="section-head">
+    <h3><span class="section-num" data-section-num>{{ number|default:"1" }}</span> Prüfer</h3>
+    <button type="button" class="btn btn-sm btn-ghost" data-formset-remove hidden>{% icon "trash" %} Entfernen</button>
+  </div>
+  {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+  {% if form.non_field_errors %}<p class="form-error">{{ form.non_field_errors|join:" " }}</p>{% endif %}
+  {% include "partials/field.html" with field=form.examiner %}
+  <div class="new-examiner" data-new-examiner{% if form.examiner.value != "new" %} hidden{% endif %}>
+    <div class="field-row">
+      {% include "partials/field.html" with field=form.new_name %}
+      {% include "partials/field.html" with field=form.new_subject %}
+    </div>
+    <p class="help mb-0">Der Prüfer wird automatisch angelegt. Ist er unter anderer Schreibweise schon vorhanden, ordnen wir dein Protokoll automatisch zu.</p>
+  </div>
+  <div class="mt-2">{% include "partials/field.html" with field=form.content %}</div>
+  <div class="mt-2">{% include "partials/field.html" with field=form.file %}</div>
+</div>

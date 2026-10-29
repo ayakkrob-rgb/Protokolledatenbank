@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Danke für dein Protokoll{% endblock %}
+{% block container_class %}container-narrow{% endblock %}
+{% block content %}
+<div class="card card-body text-center">
+  <div class="success-mark">{% icon "check" %}</div>
+  <h1>Danke für dein Protokoll!</h1>
+  <p class="muted">{% if pending %}Die Fachschaft schaut kurz drüber und schaltet es dann frei. Du bekommst eine E-Mail, sobald das passiert ist.{% else %}Dein Protokoll ist jetzt für andere Studierende sichtbar.{% endif %}</p>
+
+  {% if refund %}
+    {% if refund.refund_status == "refunded" %}
+      <div class="refund-note mt-2 text-left">{% icon "refund" %}<div><strong>{{ refund.refunded_cents|eur }} wurden erstattet.</strong><br><span class="small">Die Gutschrift für Paket {{ refund.number }} erscheint je nach Bank in einigen Werktagen auf deinem Konto.{% if refund.provider == "simulation" %} (Testbetrieb: Erstattung simuliert.){% endif %}</span></div></div>
+    {% elif refund.refund_status == "manual_pending" %}
+      <div class="alert alert-info mt-2">{% icon "refund" %}<div>Deine Erstattung wird von der Fachschaft persönlich ausgezahlt – wir melden uns.</div></div>
+    {% else %}
+      <div class="alert alert-warning mt-2">{% icon "clock" %}<div>Deine Erstattung wird gerade bearbeitet. Bei einem Problem kümmert sich die Fachschaft darum.</div></div>
+    {% endif %}
+  {% elif pending %}
+    <div class="alert alert-info mt-2">{% icon "info" %}<div>Hast du ein Paket für {{ exam.code }} gekauft, erstatten wir den Betrag nach der Freigabe automatisch.</div></div>
+  {% endif %}
+</div>
+
+<section class="card mt-3">
+  <div class="card-head"><h2>Hochgeladen</h2></div>
+  <ul class="protocol-list">
+    {% for protocol in protocols %}
+    <li class="protocol-item">
+      <span class="file-icon">{% icon "file-text" %}</span>
+      <div class="body"><div class="title">{{ protocol.examiner.name }}</div><div class="meta">{{ exam.name }} · {{ protocol.date_label }}{% if protocol.examiner.created_via_upload %} · <span class="badge badge-primary">neuer Prüfer</span>{% endif %}</div></div>
+      <div class="actions"><a class="btn btn-sm" href="{{ protocol.get_absolute_url }}">Ansehen</a></div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+<div class="btn-group mt-3">
+  <a class="btn btn-primary" href="{% url 'core:dashboard' %}">Zu Mein Bereich</a>
+  <a class="btn" href="{% url 'protocols:upload_start' %}">Weiteres Protokoll hochladen</a>
+</div>
+{% endblock %}

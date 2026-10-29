@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Registrieren{% endblock %}
+{% block content %}
+<div class="card auth-card">
+  <div class="card-body">
+    <span class="eyebrow">Neues Konto</span>
+    <h1>Registrieren</h1>
+    <p class="muted">Mit deiner studentischen E-Mail-Adresse. Wir schicken dir einen Link zur Bestätigung.</p>
+    <form method="post" class="form-stack" novalidate>
+      {% csrf_token %}
+      {% include "partials/form_errors.html" %}
+      {% include "partials/field.html" with field=form.name %}
+      {% include "partials/field.html" with field=form.email %}
+      {% include "partials/field.html" with field=form.password1 %}
+      {% include "partials/field.html" with field=form.password2 %}
+      <div class="field field-check{% if form.accept_terms.errors %} has-error{% endif %}">
+        <label class="check" for="{{ form.accept_terms.id_for_label }}">{{ form.accept_terms }}
+          <span>Ich akzeptiere die <a href="{% url 'core:terms' %}" target="_blank">Nutzungsbedingungen</a> und habe die <a href="{% url 'core:privacy' %}" target="_blank">Datenschutzerklärung</a> gelesen.</span>
+        </label>
+        {% for error in form.accept_terms.errors %}<p class="error">{{ error }}</p>{% endfor %}
+      </div>
+      <button class="btn btn-primary btn-block btn-lg" type="submit">Konto erstellen</button>
+    </form>
+  </div>
+</div>
+<p class="auth-foot">Schon registriert? <a href="{% url 'accounts:login' %}">Anmelden</a></p>
+{% endblock %}

@@ -1,0 +1,6 @@
+{% autoescape off %}Die automatische Erstattung von {{ amount }} für das Paket {{ purchase.number }} ({{ purchase.email }}, {{ purchase.exam.code }}) ist fehlgeschlagen.
+
+Fehlermeldung: {{ error }}
+
+Bitte in der Verwaltung unter „Zahlungen“ prüfen und erneut versuchen oder manuell erstatten.
+{% endautoescape %}

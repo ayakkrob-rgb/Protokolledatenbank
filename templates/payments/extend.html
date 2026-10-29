@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Prüfer hinzufügen{% endblock %}
+{% block content %}
+<nav class="breadcrumbs"><a href="{% url 'core:dashboard' %}">Mein Bereich</a><span class="sep">/</span><span>Paket {{ purchase.number }}</span></nav>
+<div class="page-head"><div><h1>Prüfer zu deinem Paket hinzufügen</h1><p>{{ purchase.exam.name }} · noch {{ free_slots }} {{ free_slots|plural:"Platz,Plätze" }} frei – kostenlos.</p></div></div>
+{% if candidates %}
+<form method="post" data-selection data-max="{{ free_slots }}" data-price="0" data-free-slots="{{ free_slots }}">
+  {% csrf_token %}
+  <div class="examiner-grid">
+    {% for examiner in candidates %}
+    <label class="examiner-card selectable">
+      <input class="select-input" type="checkbox" name="examiners" value="{{ examiner.pk }}">
+      <span class="select-box">{% icon "check" %}</span>
+      <div class="top"><span class="avatar">{{ examiner.initials }}</span><div><div class="name">{{ examiner.name }}</div><div class="meta">{{ examiner.subject.name|default:"" }}</div></div></div>
+      <div class="foot"><span class="small muted">{{ examiner.published_count }} {{ examiner.published_count|plural:"Protokoll,Protokolle" }}</span></div>
+    </label>
+    {% endfor %}
+  </div>
+  <div class="selection-bar">
+    <div class="info"><span class="count" data-selection-count>Prüfer auswählen</span><span class="hint" data-selection-hint></span></div>
+    <button class="btn btn-primary" type="submit" data-selection-submit>{% icon "plus" %} Hinzufügen</button>
+  </div>
+</form>
+{% else %}
+<div class="card empty">{% icon "examiner" %}<h3>Keine weiteren Prüfer verfügbar</h3><p>Alle Prüfer mit Protokollen sind bereits freigeschaltet.</p></div>
+{% endif %}
+{% endblock %}

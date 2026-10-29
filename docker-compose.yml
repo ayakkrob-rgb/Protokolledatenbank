@@ -1,0 +1,19 @@
+# Start:   docker compose up -d --build
+# Logs:    docker compose logs -f
+# Befehle: docker compose exec web python manage.py <befehl>
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - protokolle-daten:/data
+      # Für den Import großer Sammlungen (optional):
+      # - ./altbestand:/import:ro
+    ports:
+      - "127.0.0.1:8000:8000"
+
+volumes:
+  protokolle-daten:

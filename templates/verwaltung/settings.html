@@ -1,0 +1,78 @@
+{% extends "verwaltung/base.html" %}
+{% load ui %}
+{% block admin_title %}Einstellungen{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Einstellungen</h1><p>Alles, was die Webseite steuert – Preise, Stripe, E-Mail, Registrierung, Uploads und Rechtstexte.</p></div>
+</div>
+
+<nav class="tabs" data-tabs data-tabs-input="#active-tab">
+  {% for section in sections %}
+  <a href="#{{ section.key }}" class="{% if forloop.first %}active{% endif %}{% if section.has_errors %} has-error{% endif %}">{% icon section.icon %} {{ section.title }}</a>
+  {% endfor %}
+</nav>
+
+<form method="post" novalidate id="settings-form">
+  {% csrf_token %}
+  <input type="hidden" name="active_tab" id="active-tab" value="">
+  {% include "partials/form_errors.html" %}
+  {% for section in sections %}
+  <section class="tab-panel{% if forloop.first %} active{% endif %}" id="{{ section.key }}">
+    <div class="grid grid-sidebar">
+      <div class="card card-body form-stack">
+        <h2>{{ section.title }}</h2>
+        {% for field in section.fields %}
+          {% include "partials/field.html" %}
+          {% if field.name in env_overrides and env_overrides|get_item:field.name %}<p class="help mt-0">{% icon "info" %} Wird aktuell durch eine Umgebungsvariable auf dem Server vorgegeben (hat Vorrang).</p>{% endif %}
+        {% endfor %}
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Einstellungen speichern</button></div>
+      </div>
+
+      <aside class="stack">
+        {% if section.key == "zahlungen" %}
+        <div class="card card-body">
+          <h3>{% icon "card" %} Stripe anbinden – in 4 Schritten</h3>
+          <ol class="small">
+            <li>Im <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">Stripe-Dashboard → Entwickler → API-Schlüssel</a> den <strong>Geheimschlüssel</strong> (sk_live_… bzw. zum Testen sk_test_…) kopieren und links eintragen.</li>
+            <li>Unter <a href="https://dashboard.stripe.com/webhooks" target="_blank" rel="noopener">Entwickler → Webhooks</a> einen Endpunkt mit dieser Adresse anlegen:
+              <div class="copy-field mt-1"><input class="input" id="webhook-url" value="{{ webhook_url }}" readonly><button type="button" class="btn btn-sm" data-copy="#webhook-url">{% icon "copy" %} Kopieren</button></div>
+              Ereignisse auswählen:
+              <ul class="event-list">
+                <li><code>checkout.session.completed</code></li>
+                <li><code>checkout.session.async_payment_succeeded</code></li>
+                <li><code>checkout.session.async_payment_failed</code></li>
+                <li><code>checkout.session.expired</code></li>
+                <li><code>charge.refunded</code></li>
+              </ul></li>
+            <li>Das <strong>Signaturgeheimnis</strong> (whsec_…) des Webhooks links eintragen.</li>
+            <li>Zahlungsmodus auf <strong>Stripe</strong> stellen, speichern und „Verbindung testen“.</li>
+          </ol>
+          <p class="small muted">Aktueller Schlüssel: {% if stripe_mode == "live" %}{% badge "LIVE" "success" %}{% elif stripe_mode == "test" %}{% badge "Testmodus" "warning" %}{% elif stripe_mode %}{% badge stripe_mode %}{% else %}{% badge "keiner hinterlegt" %}{% endif %}</p>
+          <button type="submit" form="test-stripe" class="btn btn-block">{% icon "refresh" %} Verbindung testen</button>
+        </div>
+        <div class="card card-body small muted">
+          <strong>Hinweis zu Gebühren:</strong> Stripe behält bei einer Erstattung seine Gebühr der ursprünglichen Zahlung ein. Bei {{ site.price|euro }} Preis und {{ site.refund_amount|euro }} Erstattung bleibt nach Gebühren nur ein kleiner Betrag übrig.
+        </div>
+        {% elif section.key == "email" %}
+        <div class="card card-body">
+          <h3>{% icon "send" %} Test-E-Mail</h3>
+          <p class="small muted">Erst speichern, dann testen.</p>
+          <input class="input" type="email" name="to" form="test-email" value="{{ user.email }}" aria-label="Empfänger">
+          <button type="submit" form="test-email" class="btn btn-block mt-1">{% icon "send" %} Test-E-Mail senden</button>
+        </div>
+        <div class="card card-body small muted">Die SMTP-Zugangsdaten bekommt ihr meist vom Rechenzentrum eurer Uni oder eurem Mail-Anbieter. Im Simulationsmodus landen alle E-Mails nur im <a href="{% url 'verwaltung:emails' %}">Postausgang</a>.</div>
+        {% elif section.key == "registrierung" %}
+        <div class="card card-body small muted">Nur Adressen dieser Domains können sich registrieren. Jede Registrierung muss per Link in einer E-Mail bestätigt werden.</div>
+        {% elif section.key == "uploads" %}
+        <div class="card card-body small muted"><strong>Empfehlung:</strong> Startet ohne Moderation. Falls jemand versucht, mit unbrauchbaren Uploads an die Erstattung zu kommen, schaltet „Uploads vor Veröffentlichung prüfen“ ein.</div>
+        {% elif section.key == "rechtliches" %}
+        <div class="card card-body small muted">Diese Texte erscheinen unter Impressum, Datenschutz und Nutzungsbedingungen. Die Mustertexte müssen vor dem Livegang angepasst und am besten rechtlich geprüft werden.</div>
+        {% endif %}
+      </aside>
+    </div>
+  </section>
+  {% endfor %}
+</form>
+<form method="post" action="{% url 'verwaltung:settings_test_stripe' %}" id="test-stripe">{% csrf_token %}</form>
+<form method="post" action="{% url 'verwaltung:settings_test_email' %}" id="test-email">{% csrf_token %}</form>
+{% endblock %}

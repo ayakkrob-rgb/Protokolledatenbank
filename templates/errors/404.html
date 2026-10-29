@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Seite nicht gefunden{% endblock %}
+{% block container_class %}container-narrow{% endblock %}
+{% block content %}
+<div class="card empty">
+  {% icon "search" %}
+  <h1>Seite nicht gefunden</h1>
+  <p>Diese Seite gibt es nicht (mehr) oder du hast keinen Zugriff darauf.</p>
+  <a class="btn btn-primary" href="{% url 'core:home' %}">Zur Startseite</a>
+</div>
+{% endblock %}

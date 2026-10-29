@@ -1,0 +1,80 @@
+{% extends "verwaltung/base.html" %}
+{% load ui %}
+{% block admin_title %}Import{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Import des Altbestands</h1><p>Bestehende Protokolle als ZIP-Archiv hochladen. Prüfer und Fächer werden automatisch angelegt, bereits importierte Dateien übersprungen.</p></div>
+</div>
+
+{% if report %}
+<section class="card mb-3">
+  <div class="card-head"><h2>Ergebnis</h2><span class="muted small">{{ report.summary }}</span></div>
+  <div class="card-body">
+    <div class="kpis">
+      <div class="kpi"><div class="label">Importiert</div><div class="value">{{ report.imported }}</div></div>
+      <div class="kpi"><div class="label">Übersprungen (schon vorhanden)</div><div class="value">{{ report.skipped }}</div></div>
+      <div class="kpi"><div class="label">Neue Prüfer</div><div class="value">{{ report.created_examiners|length }}</div></div>
+      <div class="kpi"><div class="label">Fehler</div><div class="value">{{ report.errors|length }}</div></div>
+    </div>
+    {% if report.created_exams %}<p><strong>Neue Prüfungen:</strong> {{ report.created_exams|join:", " }}</p>{% endif %}
+    {% if report.created_subjects %}<p><strong>Neue Fächer:</strong> {{ report.created_subjects|join:", " }}</p>{% endif %}
+    {% if report.created_examiners %}<details><summary class="strong">Neue Prüfer ({{ report.created_examiners|length }})</summary><p class="small mt-1">{{ report.created_examiners|join:", " }}</p></details>{% endif %}
+    {% if report.errors %}
+    <h3 class="mt-2">Fehler</h3>
+    <div class="table-wrap"><table class="table"><thead><tr><th>Datei / Ordner</th><th>Problem</th></tr></thead><tbody>
+      {% for path, message in report.errors %}<tr><td class="mono">{{ path }}</td><td>{{ message }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+<div class="grid grid-sidebar">
+  <section class="card">
+    <div class="card-head"><h2>{% icon "import" %} ZIP hochladen</h2></div>
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data" class="form-stack" novalidate>
+        {% csrf_token %}
+        {% include "partials/form_errors.html" %}
+        {% include "partials/field.html" with field=form.archive %}
+        {% include "partials/field.html" with field=form.status %}
+        {% include "partials/field.html" with field=form.create_exams %}
+        {% include "partials/field.html" with field=form.dry_run %}
+        <div class="form-actions"><button class="btn btn-primary" type="submit">{% icon "upload" %} Importieren</button></div>
+      </form>
+    </div>
+  </section>
+  <aside class="stack">
+    <section class="card card-body">
+      <h3>So muss das Archiv aufgebaut sein</h3>
+      <pre class="small">M1/
+  Anatomie/
+    Prof. Dr. Anna Beispiel/
+      2024-03-12 Protokoll.pdf
+      Herbst 2023.docx
+  Biochemie/
+    Dr. Max Mustermann/
+      Protokoll.txt
+M3/
+  Prof. Dr. Erika Musterfrau/
+    24.05.2024.pdf</pre>
+      <ul class="small muted">
+        <li>Erste Ebene: Prüfung (Kürzel oder Name, z. B. „M1“).</li>
+        <li>Optional: Fach als Zwischenordner.</li>
+        <li>Dann ein Ordner pro Prüfer.</li>
+        <li>Datum im Dateinamen wird erkannt (2024-03-12, 12.03.2024, Herbst 2023, WiSe 23/24).</li>
+        <li>.txt-Dateien werden als Text übernommen.</li>
+      </ul>
+    </section>
+    <section class="card card-body">
+      <h3>Sehr große Sammlungen</h3>
+      <p class="small muted">Für mehrere Gigabyte besser direkt auf dem Server importieren:</p>
+      <pre class="small">python manage.py import_protocols /pfad/zum/ordner</pre>
+    </section>
+    <section class="card card-body">
+      <h3>Vorhandene Prüfungen</h3>
+      {% for exam in exams %}<p class="small mb-1"><strong>{{ exam.code }}</strong> – {{ exam.name }}{% if exam.subjects.all %}<br><span class="muted">Fächer: {{ exam.subjects.all|join:", " }}</span>{% endif %}</p>{% endfor %}
+    </section>
+  </aside>
+</div>
+{% endblock %}

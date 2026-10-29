@@ -1,0 +1,46 @@
+{% extends "verwaltung/base.html" %}
+{% load ui %}
+{% block admin_title %}Freigaben{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Freigaben</h1><p>{% if site.require_upload_approval %}Neue Uploads werden erst nach deiner Freigabe veröffentlicht und erstattet.{% else %}Die Moderation ist ausgeschaltet – Uploads werden sofort veröffentlicht. Hier landen nur Protokolle, die manuell auf „wartet“ gesetzt wurden.{% endif %}</p></div>
+  <div class="actions"><a class="btn" href="{% url 'verwaltung:settings' %}#uploads">{% icon "settings" %} Moderation {% if site.require_upload_approval %}aus{% else %}ein{% endif %}schalten</a></div>
+</div>
+
+{% for group in submissions %}
+{% with first=group.0 %}
+<section class="submission">
+  <div class="submission-head">
+    <div>
+      <strong>{{ first.examiner.exam.name }}</strong> · Prüfung am {{ first.date_label }}{% if first.grade %} · Note {{ first.grade }}{% endif %}
+      <div class="small muted">von {% if first.uploaded_by %}<a href="{% url 'verwaltung:user_detail' first.uploaded_by.pk %}">{{ first.uploaded_by.email }}</a>{% else %}unbekannt{% endif %} · {{ first.created_at|date:"d.m.Y H:i" }} · {{ group|length }} {{ group|length|plural:"Protokoll,Protokolle" }}</div>
+    </div>
+  </div>
+  {% for protocol in group %}
+  <div class="submission-item">
+    <div class="row-between">
+      <div><strong>{{ protocol.examiner.name }}</strong>{% if protocol.examiner.subject %} <span class="muted">· {{ protocol.examiner.subject.name }}</span>{% endif %}{% if protocol.examiner.created_via_upload and not protocol.examiner.is_active %} {% badge "neuer Prüfer" "primary" %}{% endif %}</div>
+      <div class="btn-group">
+        <a class="btn btn-sm" href="{% url 'verwaltung:protocol_edit' protocol.pk %}">{% icon "edit" %} Bearbeiten</a>
+        {% if protocol.file %}<a class="btn btn-sm" href="{% url 'protocols:protocol_file' protocol.pk %}">{% icon "download" %} {{ protocol.file_extension|upper }}</a>{% endif %}
+      </div>
+    </div>
+    {% if protocol.content %}<div class="preview">{{ protocol.content }}</div>{% elif not protocol.file %}<p class="muted small">Kein Inhalt.</p>{% endif %}
+    <div class="btn-group mt-1">
+      <form method="post" action="{% url 'verwaltung:protocol_approve' protocol.pk %}" class="inline">{% csrf_token %}<button class="btn btn-success btn-sm">{% icon "check" %} Freigeben</button></form>
+      <details class="reject">
+        <summary class="btn btn-sm btn-outline-danger">{% icon "x" %} Ablehnen …</summary>
+        <form method="post" action="{% url 'verwaltung:protocol_reject' protocol.pk %}">{% csrf_token %}
+          <textarea class="input" name="reason" rows="2">{{ reject_form.reason.initial }}</textarea>
+          <button class="btn btn-sm btn-danger">Ablehnen &amp; informieren</button>
+        </form>
+      </details>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endwith %}
+{% empty %}
+<div class="card empty">{% icon "shield" %}<h3>Keine offenen Freigaben</h3><p>Alles erledigt.</p></div>
+{% endfor %}
+{% endblock %}

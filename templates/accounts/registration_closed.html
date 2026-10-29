@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Registrierung geschlossen{% endblock %}
+{% block content %}
+<div class="card auth-card"><div class="card-body text-center">
+  <div class="lock-panel">
+    <div class="lock-icon">{% icon "lock" %}</div>
+    <h1>Registrierung derzeit geschlossen</h1>
+    <p class="muted">Neue Konten können im Moment nicht angelegt werden.{% if site.contact_email %} Bei Fragen: <a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>{% endif %}</p>
+  </div>
+</div></div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Prüfungen{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Protokolldatenbank</span>
+    <h1>Prüfungen</h1>
+    <p>Wähle deine Prüfung, um die Prüfer und ihre Gedächtnisprotokolle zu sehen.</p>
+  </div>
+</div>
+{% if exams %}
+<div class="grid grid-3">
+  {% for exam in exams %}
+  <a class="card exam-card" href="{{ exam.get_absolute_url }}">
+    <span class="exam-code">{{ exam.code }}</span>
+    <h3>{{ exam.name }}</h3>
+    <p>{{ exam.description|default:"Gedächtnisprotokolle sortiert nach Prüfer." }}</p>
+    <div class="exam-meta">
+      <span>{% icon "examiner" %} {{ exam.examiner_count }} Prüfer</span>
+      <span>{% icon "file-text" %} {{ exam.protocol_count }} {{ exam.protocol_count|plural:"Protokoll,Protokolle" }}</span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card empty">{% icon "book" %}<h3>Noch keine Prüfungen angelegt</h3></div>
+{% endif %}
+{% endblock %}

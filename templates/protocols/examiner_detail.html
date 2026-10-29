@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}{{ examiner.name }}{% endblock %}
+{% block content %}
+<nav class="breadcrumbs"><a href="{% url 'protocols:exam_list' %}">Prüfungen</a><span class="sep">/</span><a href="{{ exam.get_absolute_url }}">{{ exam.name }}</a><span class="sep">/</span><span>{{ examiner.name }}</span></nav>
+<div class="page-head">
+  <div class="row">
+    <span class="avatar avatar-lg">{{ examiner.initials }}</span>
+    <div>
+      <h1>{{ examiner.name }}</h1>
+      <p class="mt-0">{{ exam.name }}{% if examiner.subject %} · {{ examiner.subject.name }}{% endif %}{% if examiner.institute %} · {{ examiner.institute }}{% endif %}</p>
+    </div>
+  </div>
+  <div class="actions">
+    {% if has_access %}{% badge "Freigeschaltet" "success" %}{% endif %}
+  </div>
+</div>
+
+<div class="grid grid-sidebar">
+  <section class="card">
+    <div class="card-head"><h2>{% icon "file-text" %} Protokolle</h2><span class="muted">{{ protocols|length }}</span></div>
+    {% if protocols %}
+    <ul class="protocol-list">
+      {% for protocol in protocols %}
+      <li class="protocol-item{% if not has_access and protocol.uploaded_by_id != user.id %} locked{% endif %}">
+        <span class="file-icon">{% if has_access or protocol.uploaded_by_id == user.id %}{% if protocol.file %}{% icon "file" %}{% else %}{% icon "file-text" %}{% endif %}{% else %}{% icon "lock" %}{% endif %}</span>
+        <div class="body">
+          <div class="title">{{ protocol.display_title }}</div>
+          <div class="meta">
+            <span>{% icon "calendar" %} {{ protocol.date_label }}</span>
+            {% if protocol.content %}<span>{{ protocol.word_count }} Wörter</span>{% endif %}
+            {% if protocol.file %}<span>{{ protocol.file_extension|upper }}-Datei</span>{% endif %}
+            {% if protocol.status == "pending" %}<span class="badge badge-warning">Dein Upload – wird geprüft</span>{% elif protocol.uploaded_by_id == user.id %}<span class="badge badge-primary">Dein Upload</span>{% endif %}
+          </div>
+        </div>
+        <div class="actions">
+          {% if has_access or protocol.uploaded_by_id == user.id %}
+            <a class="btn btn-sm btn-primary" href="{{ protocol.get_absolute_url }}">{% icon "eye" %} Lesen</a>
+          {% else %}
+            <span class="badge">{% icon "lock" %} Gesperrt</span>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty">{% icon "file-text" %}<h3>Noch keine Protokolle</h3></div>
+    {% endif %}
+  </section>
+
+  <aside class="stack">
+    {% if has_access %}
+      {% if examiner.description %}
+      <div class="card card-body"><h3>Hinweise</h3><p class="mb-0 legal-text">{{ examiner.description }}</p></div>
+      {% endif %}
+      <div class="card card-body">
+        <h3>Eigene Prüfung gehabt?</h3>
+        <p class="small muted">Teile dein Protokoll und hilf den Nächsten.</p>
+        <a class="btn btn-block" href="{% url 'protocols:upload' exam.slug %}">{% icon "upload" %} Protokoll hochladen</a>
+      </div>
+    {% else %}
+      <div class="card lock-panel">
+        <div class="lock-icon">{% icon "lock" %}</div>
+        <h3>Protokolle freischalten</h3>
+        {% if package %}
+          <p class="small muted">In deinem Paket {{ package.number }} ist noch Platz. Füge {{ examiner.name }} kostenlos hinzu.</p>
+          <a class="btn btn-primary btn-block" href="{% url 'payments:order' exam.slug %}?pruefer={{ examiner.pk }}">Kostenlos hinzufügen</a>
+        {% else %}
+          <p class="small muted">Wähle {{ examiner.name }} und bis zu {{ max_examiners|add:"-1" }} weitere Prüfer für zusammen {{ price_cents|eur }}.</p>
+          <a class="btn btn-primary btn-block" href="{{ exam.get_absolute_url }}?auswahl={{ examiner.pk }}">Prüfer auswählen</a>
+        {% endif %}
+      </div>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

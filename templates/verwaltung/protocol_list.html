@@ -1,0 +1,55 @@
+{% extends "verwaltung/base.html" %}
+{% load ui %}
+{% block admin_title %}Protokolle{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Protokolle</h1><p>{% if examiner %}Gefiltert auf {{ examiner.name }} · <a href="{% url 'verwaltung:protocols' %}">Filter entfernen</a>{% else %}Alle Protokolle aus Uploads, Import und Verwaltung.{% endif %}</p></div>
+  <div class="actions">
+    <a class="btn" href="{% url 'verwaltung:import' %}">{% icon "import" %} Import</a>
+    <a class="btn btn-primary" href="{% url 'verwaltung:protocol_create' %}{% if examiner %}?pruefer={{ examiner.pk }}{% endif %}">{% icon "plus" %} Neues Protokoll</a>
+  </div>
+</div>
+<section class="card">
+  <form method="get" class="filters">
+    {% if examiner_id %}<input type="hidden" name="pruefer" value="{{ examiner_id }}">{% endif %}
+    <div class="field grow"><label for="q">Suche</label><input id="q" type="search" name="q" value="{{ q }}" placeholder="Text, Prüfer, Uploader, Dateiname"></div>
+    <div class="field"><label for="f-exam">Prüfung</label><select id="f-exam" name="pruefung" data-autosubmit><option value="">Alle</option>{% for exam in exams %}<option value="{{ exam.pk }}"{% if exam.pk == exam_id %} selected{% endif %}>{{ exam.code }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-status">Status</label><select id="f-status" name="status" data-autosubmit><option value="">Alle</option>{% for value, label in statuses %}<option value="{{ value }}"{% if value == status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-source">Herkunft</label><select id="f-source" name="herkunft" data-autosubmit><option value="">Alle</option>{% for value, label in sources %}<option value="{{ value }}"{% if value == source %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <button class="btn btn-sm" type="submit">{% icon "filter" %} Filtern</button>
+  </form>
+  <form method="post" action="{% url 'verwaltung:protocol_bulk' %}">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th><input type="checkbox" data-check-all="ids" aria-label="Alle auswählen"></th><th>Protokoll</th><th>Prüfer</th><th>Uploader</th><th>Inhalt</th><th>Status</th><th class="num">Downloads</th></tr></thead>
+        <tbody>
+          {% for protocol in page %}
+          <tr>
+            <td><input type="checkbox" name="ids" value="{{ protocol.pk }}" aria-label="Auswählen"></td>
+            <td><a class="strong" href="{% url 'verwaltung:protocol_edit' protocol.pk %}">{{ protocol.display_title }}</a><span class="sub">#{{ protocol.pk }} · {{ protocol.date_label }} · {{ protocol.get_source_display }}</span></td>
+            <td>{{ protocol.examiner.name }}<span class="sub">{{ protocol.examiner.exam.code }}</span></td>
+            <td class="small">{% if protocol.uploaded_by %}<a href="{% url 'verwaltung:user_detail' protocol.uploaded_by.pk %}">{{ protocol.uploaded_by.email }}</a>{% else %}<span class="muted">–</span>{% endif %}</td>
+            <td class="small nowrap">{% if protocol.content %}{% icon "file-text" %} {{ protocol.word_count }} W.{% endif %} {% if protocol.file %}{% icon "file" %} {{ protocol.file_extension|upper }}{% endif %}</td>
+            <td>{% include "verwaltung/_protocol_status.html" %}</td>
+            <td class="num">{{ protocol.download_count }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7"><div class="empty">{% icon "file-text" %}<h3>Keine Protokolle gefunden</h3></div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page.object_list %}
+    <div class="bulk-bar">
+      <span class="small muted">Ausgewählte:</span>
+      <button class="btn btn-sm" name="action" value="publish">{% icon "check" %} Veröffentlichen</button>
+      <button class="btn btn-sm" name="action" value="pending">{% icon "clock" %} Auf „wartet“ setzen</button>
+      <button class="btn btn-sm btn-outline-danger" name="action" value="delete" data-confirm="Ausgewählte Protokolle endgültig löschen?">{% icon "trash" %} Löschen</button>
+    </div>
+    {% endif %}
+  </form>
+  {% include "partials/pagination.html" %}
+</section>
+{% endblock %}

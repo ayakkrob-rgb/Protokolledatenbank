@@ -1,0 +1,1 @@
+{% load ui %}{% if p.refund_status == "refunded" %}{% badge "Erstattet" "info" %}{% elif p.refund_status == "failed" %}{% badge "Fehlgeschlagen" "danger" %}{% elif p.refund_status == "manual_pending" %}{% badge "Manuell auszahlen" "warning" %}{% elif p.refund_status == "processing" %}{% badge "In Bearbeitung" "info" %}{% else %}<span class="muted small">–</span>{% endif %}

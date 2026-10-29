@@ -1,0 +1,63 @@
+{% extends "verwaltung/base.html" %}
+{% load ui %}
+{% block admin_title %}{% if protocol %}Protokoll #{{ protocol.pk }}{% else %}Neues Protokoll{% endif %}{% endblock %}
+{% block content %}
+<nav class="breadcrumbs"><a href="{% url 'verwaltung:protocols' %}">Protokolle</a><span class="sep">/</span><span>{% if protocol %}#{{ protocol.pk }}{% else %}Neu{% endif %}</span></nav>
+<div class="page-head">
+  <div><h1>{% if protocol %}{{ protocol.display_title }}{% else %}Neues Protokoll{% endif %}</h1>{% if protocol %}<p>{{ protocol.examiner.name }} · {{ protocol.examiner.exam.name }}</p>{% else %}<p>Als Admin angelegte Protokolle lösen keine Erstattung aus.</p>{% endif %}</div>
+  {% if protocol %}<div class="actions">{% include "verwaltung/_protocol_status.html" %}<a class="btn" href="{{ protocol.get_absolute_url }}" target="_blank">{% icon "eye" %} Wie Studierende ansehen</a></div>{% endif %}
+</div>
+
+<div class="grid grid-sidebar">
+  <section class="card">
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data" class="form-stack" novalidate>
+        {% csrf_token %}
+        {% include "partials/form_errors.html" %}
+        {% include "partials/field.html" with field=form.examiner %}
+        <p class="help mt-0">Prüfer fehlt? <a href="{% url 'verwaltung:examiner_create' %}" target="_blank">Neuen Prüfer anlegen</a></p>
+        {% include "partials/field.html" with field=form.title %}
+        <div class="field-row">{% include "partials/field.html" with field=form.exam_date %}{% include "partials/field.html" with field=form.exam_period %}</div>
+        <div class="field-row">{% include "partials/field.html" with field=form.grade %}{% include "partials/field.html" with field=form.status %}</div>
+        {% include "partials/field.html" with field=form.content %}
+        {% if protocol.file %}
+        <div class="alert alert-info">{% icon "file" %}<div>Aktuelle Datei: <a href="{% url 'protocols:protocol_file' protocol.pk %}">{{ protocol.original_filename|default:"Datei" }}</a> ({{ protocol.file_size|filesizeformat }})</div></div>
+        {% include "partials/field.html" with field=form.remove_file %}
+        {% endif %}
+        {% include "partials/field.html" with field=form.upload %}
+        {% include "partials/field.html" with field=form.rejection_reason %}
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Speichern</button><a class="btn btn-ghost" href="{% url 'verwaltung:protocols' %}">Abbrechen</a></div>
+      </form>
+    </div>
+  </section>
+
+  {% if protocol %}
+  <aside class="stack">
+    <section class="card card-body">
+      <dl class="dl small">
+        <dt>Herkunft</dt><dd>{{ protocol.get_source_display }}</dd>
+        <dt>Hochgeladen von</dt><dd>{% if protocol.uploaded_by %}<a href="{% url 'verwaltung:user_detail' protocol.uploaded_by.pk %}">{{ protocol.uploaded_by.email }}</a>{% else %}–{% endif %}</dd>
+        <dt>Erstellt</dt><dd>{{ protocol.created_at|date:"d.m.Y H:i" }}</dd>
+        {% if protocol.reviewed_by %}<dt>Geprüft</dt><dd>{{ protocol.reviewed_by.email }}, {{ protocol.reviewed_at|date:"d.m.Y H:i" }}</dd>{% endif %}
+        <dt>Aufrufe / Downloads</dt><dd>{{ protocol.view_count }} / {{ protocol.download_count }}</dd>
+        <dt>Erstattung</dt><dd>{% if refund %}<a href="{% url 'verwaltung:purchase_detail' refund.pk %}">{{ refund.number }}</a> – {{ refund.get_refund_status_display }}{% else %}–{% endif %}</dd>
+      </dl>
+    </section>
+    {% if protocol.status == "pending" %}
+    <section class="card card-body">
+      <h3>Freigabe</h3>
+      <form method="post" action="{% url 'verwaltung:protocol_approve' protocol.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button class="btn btn-success btn-block">{% icon "check" %} Freigeben{% if protocol.source == "upload" %} &amp; erstatten{% endif %}</button></form>
+      <form method="post" action="{% url 'verwaltung:protocol_reject' protocol.pk %}" class="form-stack mt-2">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+        {% include "partials/field.html" with field=reject_form.reason %}
+        <button class="btn btn-outline-danger btn-block">{% icon "x" %} Ablehnen</button>
+      </form>
+    </section>
+    {% endif %}
+    <section class="card card-danger card-body">
+      <h3>Löschen</h3>
+      <form method="post" action="{% url 'verwaltung:protocol_delete' protocol.pk %}" data-confirm="Protokoll endgültig löschen?">{% csrf_token %}<button class="btn btn-outline-danger btn-sm">{% icon "trash" %} Endgültig löschen</button></form>
+    </section>
+  </aside>
+  {% endif %}
+</div>
+{% endblock %}

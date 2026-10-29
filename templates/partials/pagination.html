@@ -1,0 +1,17 @@
+{% load ui %}{% if page.paginator.num_pages > 1 %}
+<nav class="pagination" aria-label="Seiten">
+  <span>Seite {{ page.number }} von {{ page.paginator.num_pages }} · {{ page.paginator.count }} Einträge</span>
+  <div class="btn-group">
+    {% if page.has_previous %}
+      <a class="btn btn-sm" href="{% query_replace seite=1 %}">« Erste</a>
+      <a class="btn btn-sm" href="{% query_replace seite=page.previous_page_number %}">{% icon "arrow-left" %} Zurück</a>
+    {% endif %}
+    {% if page.has_next %}
+      <a class="btn btn-sm" href="{% query_replace seite=page.next_page_number %}">Weiter {% icon "arrow-right" %}</a>
+      <a class="btn btn-sm" href="{% query_replace seite=page.paginator.num_pages %}">Letzte »</a>
+    {% endif %}
+  </div>
+</nav>
+{% elif page.paginator.count %}
+<div class="pagination"><span>{{ page.paginator.count }} Einträge</span></div>
+{% endif %}

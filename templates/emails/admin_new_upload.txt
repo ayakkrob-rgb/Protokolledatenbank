@@ -1,0 +1,9 @@
+{% autoescape off %}{{ user.email }} hat {{ protocols|length }} Protokoll(e) hochgeladen:
+{% for protocol in protocols %}  • {{ protocol.examiner.name }} ({{ protocol.examiner.exam.code }}, {{ protocol.date_label }})
+{% endfor %}{% if new_examiners %}
+Neu angelegte Prüfer (bitte auf Dubletten prüfen):
+{% for examiner in new_examiners %}  • {{ examiner.name }}
+{% endfor %}{% endif %}
+{% if pending %}Die Protokolle warten auf Freigabe:{% else %}Die Protokolle sind bereits veröffentlicht:{% endif %}
+{{ url }}
+{% endautoescape %}

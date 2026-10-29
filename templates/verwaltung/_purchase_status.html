@@ -1,0 +1,1 @@
+{% load ui %}{% if p.status == "paid" %}{% if p.is_expired %}{% badge "Abgelaufen" %}{% else %}{% badge "Bezahlt" "success" %}{% endif %}{% elif p.status == "pending" %}{% badge "Zahlung offen" "warning" %}{% elif p.status == "revoked" %}{% badge "Zugriff entzogen" "danger" %}{% else %}{% badge "Abgebrochen" %}{% endif %}

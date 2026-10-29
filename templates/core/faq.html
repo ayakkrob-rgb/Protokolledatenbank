@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}So funktioniert's{% endblock %}
+{% block container_class %}container-narrow{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Hilfe</span>
+    <h1>So funktioniert's</h1>
+    <p>Die wichtigsten Fragen rund um Freischaltung, Bezahlung und Erstattung.</p>
+  </div>
+</div>
+
+<div class="card faq">
+  <details open>
+    <summary>Wer kann die Protokolldatenbank nutzen? {% icon "chevron-down" %}</summary>
+    <div class="answer">Alle Studierenden mit einer gültigen studentischen E-Mail-Adresse{% if site.domain_list %} (erlaubt: {{ site.domain_list|join:", " }}){% endif %}. Nach der Registrierung schicken wir dir einen Bestätigungslink – erst danach kannst du Protokolle ansehen.</div>
+  </details>
+  <details>
+    <summary>Was kostet der Zugang? {% icon "chevron-down" %}</summary>
+    <div class="answer">Ein Paket kostet {{ site.price|euro }}. Damit schaltest du die Protokolle von bis zu {{ site.max_examiners_per_purchase }} Prüfern einer Prüfung (z. B. deiner Prüfungskommission im Physikum) frei – inklusive aller Protokolle, die später noch zu diesen Prüfern hinzukommen.{% if site.access_duration_days %} Der Zugriff gilt {{ site.access_duration_days }} Tage.{% endif %}</div>
+  </details>
+  <details>
+    <summary>Wie bekomme ich mein Geld zurück? {% icon "chevron-down" %}</summary>
+    <div class="answer">Lade nach deiner Prüfung dein eigenes Gedächtnisprotokoll zur gekauften Prüfung hoch. Wir erstatten dir dann automatisch {{ site.refund_amount|euro }} auf das Zahlungsmittel, mit dem du bezahlt hast{% if site.require_upload_approval %} – sobald die Fachschaft dein Protokoll kurz gesichtet hat{% endif %}. Pro Paket gibt es eine Erstattung. Je nach Bank dauert die Gutschrift einige Werktage.</div>
+  </details>
+  <details>
+    <summary>Kann ich später noch Prüfer hinzufügen? {% icon "chevron-down" %}</summary>
+    <div class="answer">Ja. Hast du weniger als {{ site.max_examiners_per_purchase }} Prüfer gewählt, kannst du die freien Plätze unter „Mein Bereich“ jederzeit kostenlos auffüllen.</div>
+  </details>
+  <details>
+    <summary>Mein Prüfer ist nicht in der Liste – was nun? {% icon "chevron-down" %}</summary>
+    <div class="answer">Dann gibt es zu ihm noch keine Protokolle. Wenn du nach deiner Prüfung ein Protokoll hochlädst, kannst du den Prüfer einfach neu eintragen – er wird automatisch angelegt.</div>
+  </details>
+  <details>
+    <summary>Wie lade ich ein Protokoll hoch? {% icon "chevron-down" %}</summary>
+    <div class="answer">Unter „Protokoll hochladen“ wählst du die Prüfung und das Datum aus. Für jeden Prüfer kannst du einen eigenen Abschnitt anlegen und den Text direkt eintippen oder eine Datei (z. B. PDF oder Word) hochladen.</div>
+  </details>
+  <details>
+    <summary>Wie wird bezahlt? {% icon "chevron-down" %}</summary>
+    <div class="answer">Die Zahlung läuft sicher über unseren Zahlungsdienstleister Stripe (z. B. Karte, Apple Pay, Google Pay oder weitere Methoden). Deine Zahlungsdaten erhalten wir nicht.</div>
+  </details>
+  <details>
+    <summary>Darf ich Protokolle weitergeben? {% icon "chevron-down" %}</summary>
+    <div class="answer">Nein. Die Protokolle sind nur für deinen persönlichen Gebrauch bestimmt.{% if site.watermark_downloads %} Heruntergeladene PDFs werden deshalb mit deiner E-Mail-Adresse gekennzeichnet.{% endif %}</div>
+  </details>
+  {% if site.extra_faq %}
+  <details>
+    <summary>Weitere Hinweise der Fachschaft {% icon "chevron-down" %}</summary>
+    <div class="answer legal-text">{{ site.extra_faq }}</div>
+  </details>
+  {% endif %}
+</div>
+
+{% if site.contact_email %}
+<p class="muted mt-3 text-center">Noch Fragen? Schreib uns an <a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>.</p>
+{% endif %}
+{% endblock %}

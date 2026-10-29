@@ -1,0 +1,13 @@
+{% autoescape off %}Hallo {{ user.first_name }},
+
+willkommen bei der {{ site.site_name }} der {{ site.organization_name }}!
+
+Bitte bestätige deine E-Mail-Adresse, indem du auf diesen Link klickst:
+
+{{ url }}
+
+Der Link ist 3 Tage gültig. Falls du dich nicht registriert hast, kannst du diese E-Mail einfach ignorieren.
+
+Viele Grüße
+{{ site.organization_name }}
+{% endautoescape %}

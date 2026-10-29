@@ -1,0 +1,1 @@
+{% load ui %}{% if protocol.status == "published" %}{% badge "Veröffentlicht" "success" %}{% elif protocol.status == "pending" %}{% badge "Wartet auf Freigabe" "warning" %}{% else %}{% badge "Abgelehnt" "danger" %}{% endif %}

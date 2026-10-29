@@ -1,0 +1,13 @@
+{% autoescape off %}Hallo,
+
+{% if approved %}dein Protokoll zu {{ protocol.examiner.name }} ({{ protocol.examiner.exam.code }}) wurde freigegeben und ist jetzt für andere Studierende sichtbar. Danke!{% else %}dein Protokoll zu {{ protocol.examiner.name }} ({{ protocol.examiner.exam.code }}) konnte leider nicht freigegeben werden.
+
+Begründung: {{ reason }}
+
+Du kannst gerne eine überarbeitete Version hochladen.{% endif %}
+
+Übersicht: {{ dashboard_url }}
+
+Viele Grüße
+{{ site.organization_name }}
+{% endautoescape %}

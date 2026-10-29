@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Zahlung{% endblock %}
+{% block container_class %}container-narrow{% endblock %}
+{% block content %}
+<div class="card card-body text-center">
+  {% if purchase.is_paid %}
+    <div class="success-mark">{% icon "check" %}</div>
+    <h1>Freigeschaltet!</h1>
+    <p class="muted">Danke für deinen Kauf. Die Protokolle deiner Prüfer stehen dir ab sofort zur Verfügung.{% if purchase.provider == "simulation" %} (Testbetrieb: Zahlung simuliert.){% endif %}</p>
+  {% elif purchase.status == "pending" %}
+    <div class="success-mark">{% icon "clock" %}</div>
+    <h1>Zahlung wird verarbeitet</h1>
+    <p class="muted">Bei manchen Zahlungsarten (z. B. Lastschrift) dauert die Bestätigung etwas. Wir schalten deine Prüfer automatisch frei und schicken dir eine E-Mail.</p>
+  {% else %}
+    <h1>{{ purchase.get_status_display }}</h1>
+  {% endif %}
+</div>
+{% if purchase.is_paid %}
+<section class="card mt-3">
+  <div class="card-head"><h2>Deine Prüfer</h2><span class="muted small">{{ purchase.exam.name }}</span></div>
+  <ul class="protocol-list">
+    {% for examiner in examiners %}
+    <li class="protocol-item"><span class="avatar">{{ examiner.initials }}</span><div class="body"><div class="title">{{ examiner.name }}</div></div><div class="actions"><a class="btn btn-primary btn-sm" href="{{ examiner.get_absolute_url }}">{% icon "unlock" %} Protokolle lesen</a></div></li>
+    {% endfor %}
+  </ul>
+</section>
+<div class="refund-note mt-3">{% icon "refund" %}<div>Denk dran: Nach deiner Prüfung dein eigenes Protokoll hochladen – dann bekommst du fast den ganzen Betrag zurück.</div></div>
+{% endif %}
+<div class="btn-group mt-3"><a class="btn" href="{% url 'core:dashboard' %}">Zu Mein Bereich</a></div>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "verwaltung/base.html" %}
+{% load ui %}
+{% block admin_title %}{% if examiner %}{{ examiner.name }}{% else %}Neuer Prüfer{% endif %}{% endblock %}
+{% block content %}
+<nav class="breadcrumbs"><a href="{% url 'verwaltung:examiners' %}">Prüfer</a><span class="sep">/</span><span>{% if examiner %}{{ examiner.name }}{% else %}Neu{% endif %}</span></nav>
+<div class="page-head">
+  <div><h1>{% if examiner %}{{ examiner.name }}{% else %}Neuer Prüfer{% endif %}</h1>{% if examiner %}<p>{{ examiner.exam.name }}{% if examiner.created_via_upload %} · durch Upload am {{ examiner.created_at|date:"d.m.Y" }} angelegt{% endif %}</p>{% endif %}</div>
+  {% if examiner %}<div class="actions">
+    <a class="btn" href="{{ examiner.get_absolute_url }}" target="_blank">{% icon "external" %} Ansehen</a>
+    <a class="btn btn-primary" href="{% url 'verwaltung:protocol_create' %}?pruefer={{ examiner.pk }}">{% icon "plus" %} Protokoll hinzufügen</a>
+  </div>{% endif %}
+</div>
+
+<div class="grid grid-sidebar">
+  <div class="stack">
+    <section class="card">
+      <div class="card-head"><h2>Angaben</h2></div>
+      <div class="card-body">
+        <form method="post" class="form-stack" novalidate>
+          {% csrf_token %}
+          {% include "partials/form_errors.html" %}
+          <div class="field-row">{% include "partials/field.html" with field=form.exam %}{% include "partials/field.html" with field=form.subject %}</div>
+          {% include "partials/field.html" with field=form.name %}
+          {% include "partials/field.html" with field=form.institute %}
+          {% include "partials/field.html" with field=form.description %}
+          {% include "partials/field.html" with field=form.is_active %}
+          <div class="form-actions"><button class="btn btn-primary" type="submit">Speichern</button><a class="btn btn-ghost" href="{% url 'verwaltung:examiners' %}">Abbrechen</a></div>
+        </form>
+      </div>
+    </section>
+
+    {% if examiner %}
+    <section class="card">
+      <div class="card-head"><h2>{% icon "file-text" %} Protokolle ({{ protocols|length }})</h2></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Protokoll</th><th>Herkunft</th><th>Status</th><th class="num">Downloads</th></tr></thead>
+          <tbody>
+            {% for protocol in protocols %}
+            <tr>
+              <td><a href="{% url 'verwaltung:protocol_edit' protocol.pk %}">{{ protocol.display_title }}</a><span class="sub">{{ protocol.date_label }}</span></td>
+              <td class="small">{{ protocol.get_source_display }}</td>
+              <td>{% include "verwaltung/_protocol_status.html" %}</td>
+              <td class="num">{{ protocol.download_count }}</td>
+            </tr>
+            {% empty %}<tr><td colspan="4" class="muted">Noch keine Protokolle.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% endif %}
+  </div>
+
+  {% if examiner %}
+  <aside class="stack">
+    <section class="card card-body">
+      <h3>{% icon "merge" %} Zusammenführen</h3>
+      <p class="small muted">Doppelt angelegt (z. B. „Prof. Müller“ und „Prof. Dr. Hans Müller“)? Alle Protokolle und Freischaltungen werden auf den gewählten Prüfer übertragen, dieser Eintrag wird gelöscht.</p>
+      <form method="post" action="{% url 'verwaltung:examiner_merge' examiner.pk %}" class="form-stack" data-confirm="„{{ examiner.name }}“ wirklich zusammenführen? Dieser Eintrag wird danach gelöscht.">
+        {% csrf_token %}
+        {% include "partials/field.html" with field=merge_form.target %}
+        <button class="btn btn-block">{% icon "merge" %} Zusammenführen</button>
+      </form>
+    </section>
+    <section class="card">
+      <div class="card-head"><h3>Freigeschaltet bei</h3><span class="muted small">{{ buyers|length }}</span></div>
+      <ul class="protocol-list">
+        {% for p in buyers %}
+        <li class="protocol-item"><div class="body"><a class="title" href="{% url 'verwaltung:purchase_detail' p.pk %}">{{ p.number }}</a><div class="meta">{{ p.email }}</div></div>{% include "verwaltung/_purchase_status.html" %}</li>
+        {% empty %}<li class="protocol-item muted small">Noch niemand.</li>{% endfor %}
+      </ul>
+    </section>
+    <section class="card card-danger card-body">
+      <h3>Löschen</h3>
+      <p class="small muted">Nur möglich, wenn es keine Protokolle und Käufe gibt.</p>
+      <form method="post" action="{% url 'verwaltung:examiner_delete' examiner.pk %}" data-confirm="Prüfer wirklich löschen?">{% csrf_token %}<button class="btn btn-outline-danger btn-sm">{% icon "trash" %} Löschen</button></form>
+    </section>
+  </aside>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}{{ exam.name }}{% endblock %}
+{% block content %}
+<nav class="breadcrumbs"><a href="{% url 'protocols:exam_list' %}">Prüfungen</a><span class="sep">/</span><span>{{ exam.name }}</span></nav>
+<div class="page-head">
+  <div>
+    <h1>{{ exam.name }}</h1>
+    <p>{% if exam.description %}{{ exam.description }} {% endif %}Wähle bis zu {{ max_examiners }} Prüfer aus und schalte alle ihre Protokolle für {{ price_cents|eur }} frei.</p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{% url 'protocols:upload' exam.slug %}">{% icon "upload" %} Protokoll hochladen</a>
+  </div>
+</div>
+
+{% if package %}
+<div class="info-strip">
+  {% icon "package" %}
+  <p>In deinem Paket <strong>{{ package.number }}</strong> {% if package_slots == 1 %}ist noch <strong>1 Platz</strong>{% else %}sind noch <strong>{{ package_slots }} Plätze</strong>{% endif %} frei. Ausgewählte Prüfer kannst du kostenlos hinzufügen.</p>
+</div>
+{% endif %}
+
+{% if unlocked_here %}
+<section class="card mb-3">
+  <div class="card-head"><h2>{% icon "unlock" %} Deine freigeschalteten Prüfer</h2></div>
+  <div class="card-body chips">
+    {% for examiner in unlocked_here %}<a class="chip-link" href="{{ examiner.get_absolute_url }}">{{ examiner.name }} <span class="muted">· {{ examiner.published_count }}</span></a>{% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if grouped %}
+<form method="get" action="{% url 'payments:order' exam.slug %}" data-selection data-max="{{ max_examiners }}" data-price="{{ price_cents }}" data-free-slots="{{ package_slots }}">
+  <div class="toolbar">
+    <div class="input-icon">
+      {% icon "search" %}
+      <input class="input" type="search" placeholder="Prüfer, Fach oder Institut suchen …" data-filter="#examiner-groups" data-filter-empty="#no-match" aria-label="Prüfer suchen">
+    </div>
+    <span class="muted small">{{ examiner_total }} Prüfer</span>
+  </div>
+
+  <div id="examiner-groups">
+    {% for subject, examiners in grouped %}
+    <section class="subject-group" data-filter-group>
+      <h2>{% icon "layers" %} {{ subject }}</h2>
+      <div class="examiner-grid">
+        {% for examiner in examiners %}
+        {% if examiner.pk in unlocked or is_staff %}
+        <div class="examiner-card is-unlocked" data-filter-text="{{ examiner.name }} {{ subject }} {{ examiner.institute }}">
+          <div class="top">
+            <span class="avatar">{{ examiner.initials }}</span>
+            <div><div class="name"><a href="{{ examiner.get_absolute_url }}">{{ examiner.name }}</a></div><div class="meta">{{ examiner.institute|default:subject }}</div></div>
+          </div>
+          <div class="foot">
+            <span class="small muted">{{ examiner.published_count }} {{ examiner.published_count|plural:"Protokoll,Protokolle" }}{% if examiner.latest %} · zuletzt {{ examiner.latest|date:"m/Y" }}{% endif %}</span>
+            <a class="btn btn-sm" href="{{ examiner.get_absolute_url }}">{% icon "unlock" %} Öffnen</a>
+          </div>
+        </div>
+        {% elif examiner.published_count == 0 %}
+        <div class="examiner-card is-empty" data-filter-text="{{ examiner.name }} {{ subject }} {{ examiner.institute }}">
+          <div class="top">
+            <span class="avatar">{{ examiner.initials }}</span>
+            <div><div class="name">{{ examiner.name }}</div><div class="meta">{{ examiner.institute|default:subject }}</div></div>
+          </div>
+          <div class="foot"><span class="badge">Noch keine Protokolle</span></div>
+        </div>
+        {% else %}
+        <label class="examiner-card selectable{% if examiner.pk in preselected %} is-selected{% endif %}" data-filter-text="{{ examiner.name }} {{ subject }} {{ examiner.institute }}">
+          <input class="select-input" type="checkbox" name="pruefer" value="{{ examiner.pk }}"{% if examiner.pk in preselected %} checked{% endif %}>
+          <span class="select-box">{% icon "check" %}</span>
+          <div class="top">
+            <span class="avatar">{{ examiner.initials }}</span>
+            <div><div class="name">{{ examiner.name }}</div><div class="meta">{{ examiner.institute|default:subject }}</div></div>
+          </div>
+          <div class="foot">
+            <span class="small muted">{% icon "lock" %} {{ examiner.published_count }} {{ examiner.published_count|plural:"Protokoll,Protokolle" }}{% if examiner.latest %} · zuletzt {{ examiner.latest|date:"m/Y" }}{% endif %}</span>
+            <a class="small" href="{{ examiner.get_absolute_url }}">Details</a>
+          </div>
+        </label>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+  <div id="no-match" class="card empty" hidden>{% icon "search" %}<h3>Kein Prüfer gefunden</h3><p>Ist dein Prüfer neu? Dann gibt es noch keine Protokolle – nach deiner Prüfung kannst du ihn beim Hochladen anlegen.</p></div>
+
+  <div class="selection-bar">
+    <div class="info">
+      <span class="count" data-selection-count>Prüfer auswählen</span>
+      <span class="hint" data-selection-hint>Bis zu {{ max_examiners }} Prüfer für {{ price_cents|eur }}</span>
+    </div>
+    <button class="btn btn-primary" type="submit" data-selection-submit>Weiter {% icon "arrow-right" %}</button>
+  </div>
+</form>
+{% else %}
+<div class="card empty">
+  {% icon "examiner" %}
+  <h3>Noch keine Prüfer</h3>
+  <p>Für diese Prüfung gibt es noch keine Protokolle. Lade nach deiner Prüfung das erste hoch!</p>
+  <a class="btn btn-primary" href="{% url 'protocols:upload' exam.slug %}">Protokoll hochladen</a>
+</div>
+{% endif %}
+{% endblock %}

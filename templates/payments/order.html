@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Bestellübersicht – {{ exam.code }}{% endblock %}
+{% block container_class %}container-narrow{% endblock %}
+{% block content %}
+<nav class="breadcrumbs"><a href="{% url 'protocols:exam_list' %}">Prüfungen</a><span class="sep">/</span><a href="{{ exam.get_absolute_url }}">{{ exam.name }}</a><span class="sep">/</span><span>Übersicht</span></nav>
+<div class="page-head"><div><h1>Deine Auswahl</h1><p>{{ exam.name }}</p></div></div>
+
+{% for error in errors %}<div class="alert alert-error mb-2">{% icon "alert" %}<div>{{ error }}</div></div>{% endfor %}
+
+<form method="post">
+  {% csrf_token %}
+  {% for examiner in examiners %}<input type="hidden" name="examiners" value="{{ examiner.pk }}">{% endfor %}
+
+  <section class="card">
+    <div class="card-head"><h2>{% icon "examiner" %} Prüfer ({{ examiners|length }} von {{ max_examiners }})</h2><a class="small" href="{{ exam.get_absolute_url }}?{% for e in examiners %}auswahl={{ e.pk }}{% if not forloop.last %}&amp;{% endif %}{% endfor %}">Auswahl ändern</a></div>
+    <div class="card-body">
+      <ul class="summary-list">
+        {% for examiner in examiners %}
+        <li><span class="avatar">{{ examiner.initials }}</span><div><div class="strong">{{ examiner.name }}</div><div class="small muted">{{ examiner.subject.name|default:exam.code }} · {{ examiner.published_count }} {{ examiner.published_count|plural:"Protokoll,Protokolle" }}</div></div></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+
+  {% if can_add %}
+  <section class="card">
+    <div class="card-body">
+      <h2>{% icon "package" %} Kostenlos zu deinem Paket hinzufügen</h2>
+      <p class="muted">In deinem Paket {{ package.number }} sind noch {{ free_slots }} {{ free_slots|plural:"Platz,Plätze" }} frei. Die ausgewählten Prüfer werden ohne weitere Kosten freigeschaltet.</p>
+      <button class="btn btn-primary btn-lg" type="submit" name="action" value="add">{% icon "plus" %} Kostenlos hinzufügen</button>
+    </div>
+  </section>
+  <p class="text-center muted small mt-2">– oder ein neues Paket kaufen –</p>
+  {% endif %}
+
+  <section class="card">
+    <div class="card-head"><h2>{% icon "card" %} Neues Paket kaufen</h2></div>
+    <div class="card-body">
+      <div class="price-row"><span>Protokollzugang {{ exam.code }} · bis zu {{ max_examiners }} Prüfer</span><span class="value">{{ price_cents|eur }}</span></div>
+      <div class="price-row total"><span>Gesamt</span><span>{{ price_cents|eur }}</span></div>
+      <div class="refund-note mt-2">{% icon "refund" %}<div><strong>{{ refund_cents|eur }} zurück</strong>, wenn du nach deiner Prüfung dein eigenes Protokoll für {{ exam.code }} hochlädst.</div></div>
+      {% if remaining_slots > 0 %}<p class="small muted mt-2 mb-0">{% if remaining_slots == 1 %}Den freien Platz{% else %}Die {{ remaining_slots }} freien Plätze{% endif %} kannst du auch später noch kostenlos mit weiteren Prüfern auffüllen.</p>{% endif %}
+
+      <div class="form-stack mt-3">
+        <div class="field field-check"><label class="check"><input type="checkbox" name="terms" value="1"{% if request.POST.terms %} checked{% endif %}> <span>Ich akzeptiere die <a href="{% url 'core:terms' %}" target="_blank">Nutzungsbedingungen</a>.</span></label></div>
+        <div class="field field-check"><label class="check"><input type="checkbox" name="consent" value="1"{% if request.POST.consent %} checked{% endif %}> <span>{{ site.checkout_consent_text }}</span></label></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary btn-lg" type="submit" name="action" value="buy">{% icon "lock" %} {% if site.is_simulation %}Weiter zur Test-Zahlung{% else %}Weiter zur Zahlung{% endif %} ({{ price_cents|eur }})</button>
+        <span class="small muted">{% if site.is_simulation %}Testbetrieb – es wird nichts abgebucht.{% else %}Sichere Zahlung über Stripe.{% endif %}</span>
+      </div>
+    </div>
+  </section>
+</form>
+{% endblock %}

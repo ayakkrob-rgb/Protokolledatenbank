@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Gedächtnisprotokolle für M1, M2 und M3{% endblock %}
+{% block content %}
+<section class="hero">
+  <span class="eyebrow">{{ site.organization_name }}</span>
+  <h1>Gedächtnisprotokolle für deine Prüfung</h1>
+  <p>{{ site.home_intro }}</p>
+  <div class="btn-group mt-3">
+    {% if user.is_authenticated %}
+      <a class="btn btn-primary btn-lg" href="{% url 'protocols:exam_list' %}">{% icon "book" %} Prüfungen ansehen</a>
+      <a class="btn btn-ghost btn-lg" href="{% url 'protocols:upload_start' %}">{% icon "upload" %} Protokoll hochladen</a>
+    {% else %}
+      <a class="btn btn-primary btn-lg" href="{% url 'accounts:register' %}">Mit Uni-Mail registrieren {% icon "arrow-right" %}</a>
+      <a class="btn btn-ghost btn-lg" href="{% url 'accounts:login' %}">Anmelden</a>
+    {% endif %}
+  </div>
+  <div class="hero-stats">
+    <div><strong>{{ stats.protocols }}</strong>Protokolle</div>
+    <div><strong>{{ stats.examiners }}</strong>Prüfer</div>
+    <div><strong>{{ refund|euro }}</strong>zurück für dein eigenes Protokoll</div>
+  </div>
+</section>
+
+<section class="mb-3" aria-labelledby="how">
+  <div class="section-title"><h2 id="how">So funktioniert's</h2><a href="{% url 'core:faq' %}" class="small">Alle Fragen &amp; Antworten {% icon "arrow-right" %}</a></div>
+  <div class="grid grid-3 steps">
+    <div class="card step">
+      <div class="step-num">1</div>
+      <h3>Mit Uni-Mail registrieren</h3>
+      <p>Melde dich mit deiner studentischen E-Mail-Adresse an und bestätige den Link, den wir dir schicken.</p>
+    </div>
+    <div class="card step">
+      <div class="step-num">2</div>
+      <h3>Prüfer freischalten</h3>
+      <p>Wähle bis zu {{ site.max_examiners_per_purchase }} Prüfer deiner Prüfung aus und schalte alle ihre Protokolle für {{ price|euro }} frei.</p>
+    </div>
+    <div class="card step">
+      <div class="step-num">3</div>
+      <h3>Protokoll hochladen, Geld zurück</h3>
+      <p>Lade nach deiner Prüfung dein eigenes Gedächtnisprotokoll hoch – du bekommst automatisch {{ refund|euro }} zurück.</p>
+    </div>
+  </div>
+</section>
+
+<section class="mt-4" aria-labelledby="exams">
+  <div class="section-title"><h2 id="exams">Prüfungen</h2></div>
+  {% if exams %}
+  <div class="grid grid-3">
+    {% for exam in exams %}
+    <a class="card exam-card" href="{% if user.is_authenticated %}{{ exam.get_absolute_url }}{% else %}{% url 'accounts:login' %}?next={{ exam.get_absolute_url|urlencode }}{% endif %}">
+      <span class="exam-code">{{ exam.code }}</span>
+      <h3>{{ exam.name }}</h3>
+      <p>{{ exam.description|default:"Gedächtnisprotokolle sortiert nach Prüfer." }}</p>
+      <div class="exam-meta">
+        <span>{% icon "examiner" %} {{ exam.examiner_count }} Prüfer</span>
+        <span>{% icon "file-text" %} {{ exam.protocol_count }} {{ exam.protocol_count|plural:"Protokoll,Protokolle" }}</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card empty">{% icon "book" %}<h3>Noch keine Prüfungen</h3><p>Die Fachschaft richtet die Datenbank gerade ein.</p></div>
+  {% endif %}
+</section>
+
+<section class="mt-4">
+  <div class="card">
+    <div class="card-body row-between">
+      <div>
+        <h2 class="mb-1">Schon geprüft?</h2>
+        <p class="muted mb-0">Hilf den nächsten Jahrgängen: Lade dein Gedächtnisprotokoll hoch. Hast du für diese Prüfung ein Paket gekauft, erstatten wir dir {{ refund|euro }} automatisch.</p>
+      </div>
+      <a class="btn btn-primary" href="{% url 'protocols:upload_start' %}">{% icon "upload" %} Protokoll hochladen</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

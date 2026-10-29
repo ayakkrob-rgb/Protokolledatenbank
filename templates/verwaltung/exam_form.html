@@ -1,0 +1,72 @@
+{% extends "verwaltung/base.html" %}
+{% load ui %}
+{% block admin_title %}{% if exam %}{{ exam.name }}{% else %}Neue Prüfung{% endif %}{% endblock %}
+{% block content %}
+<nav class="breadcrumbs"><a href="{% url 'verwaltung:exams' %}">Prüfungen</a><span class="sep">/</span><span>{% if exam %}{{ exam.name }}{% else %}Neu{% endif %}</span></nav>
+<div class="page-head">
+  <div><h1>{% if exam %}{{ exam.name }}{% else %}Neue Prüfung{% endif %}</h1></div>
+  {% if exam %}<div class="actions"><a class="btn" href="{{ exam.get_absolute_url }}" target="_blank">{% icon "external" %} Ansehen</a></div>{% endif %}
+</div>
+
+<div class="grid grid-sidebar">
+  <section class="card">
+    <div class="card-head"><h2>Angaben</h2></div>
+    <div class="card-body">
+      <form method="post" class="form-stack" novalidate>
+        {% csrf_token %}
+        {% include "partials/form_errors.html" %}
+        <div class="field-row">{% include "partials/field.html" with field=form.code %}{% include "partials/field.html" with field=form.name %}</div>
+        {% include "partials/field.html" with field=form.description %}
+        <div class="field-row">{% include "partials/field.html" with field=form.slug %}{% include "partials/field.html" with field=form.sort_order %}</div>
+        {% include "partials/field.html" with field=form.is_active %}
+        <hr>
+        <h3>Abweichende Preise (optional)</h3>
+        <div class="field-row">{% include "partials/field.html" with field=form.price_override %}{% include "partials/field.html" with field=form.refund_override %}</div>
+        {% include "partials/field.html" with field=form.max_examiners_override %}
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Speichern</button></div>
+      </form>
+    </div>
+  </section>
+
+  <aside class="stack">
+    {% if exam %}
+    <section class="card">
+      <div class="card-head"><h2>{% icon "layers" %} Fächer</h2></div>
+      <div class="card-body stack-sm">
+        <p class="small muted mb-1">Prüfer werden auf der Prüfungsseite nach Fach gruppiert.</p>
+        {% for subject in subjects %}
+        <form method="post" action="{% url 'verwaltung:subject_update' subject.pk %}" class="subject-row">
+          {% csrf_token %}
+          <input class="input flex-1" name="name" value="{{ subject.name }}" aria-label="Name">
+          <input class="input w-num" name="sort_order" value="{{ subject.sort_order }}" type="number" aria-label="Reihenfolge">
+          <button class="btn btn-sm" name="action" value="save" title="Speichern">{% icon "check" %}</button>
+          <button class="btn btn-sm btn-ghost" name="action" value="delete" title="Löschen" data-confirm="Fach „{{ subject.name }}“ löschen? Die {{ subject.examiner_count }} Prüfer bleiben ohne Fach erhalten.">{% icon "trash" %}</button>
+        </form>
+        {% empty %}<p class="small muted">Noch keine Fächer.</p>{% endfor %}
+        <hr>
+        <form method="post" action="{% url 'verwaltung:subject_add' exam.pk %}" class="subject-row">
+          {% csrf_token %}
+          <input class="input flex-1" name="name" placeholder="Neues Fach, z. B. Anatomie" required>
+          <input type="hidden" name="sort_order" value="{{ subjects|length }}">
+          <button class="btn btn-sm btn-primary">{% icon "plus" %} Hinzufügen</button>
+        </form>
+      </div>
+    </section>
+    <section class="card card-body">
+      <h3>Schnellzugriff</h3>
+      <div class="stack-sm">
+        <a class="btn btn-block btn-between" href="{% url 'verwaltung:examiners' %}?pruefung={{ exam.pk }}">Prüfer dieser Prüfung {% icon "chevron-right" %}</a>
+        <a class="btn btn-block btn-between" href="{% url 'verwaltung:examiner_create' %}?pruefung={{ exam.pk }}">Neuen Prüfer anlegen {% icon "plus" %}</a>
+      </div>
+    </section>
+    <section class="card card-danger card-body">
+      <h3>Prüfung löschen</h3>
+      <p class="small muted">Nur möglich, solange es keine Prüfer und Käufe gibt. Sonst bitte auf „inaktiv“ setzen.</p>
+      <form method="post" action="{% url 'verwaltung:exam_delete' exam.pk %}" data-confirm="Prüfung wirklich löschen?">{% csrf_token %}<button class="btn btn-outline-danger btn-sm">{% icon "trash" %} Löschen</button></form>
+    </section>
+    {% else %}
+    <div class="card card-body small muted">Nach dem Speichern kannst du Fächer hinzufügen.</div>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

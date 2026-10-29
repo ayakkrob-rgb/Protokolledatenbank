@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Test-Zahlung{% endblock %}
+{% block content %}
+<div class="checkout-sim">
+  <div class="alert alert-warning mb-2">{% icon "flask" %}<div><span class="alert-title">Simulierte Bezahlseite</span>Der Zahlungsmodus steht auf „Simulation“. Hier erscheint später die Bezahlseite von Stripe. Es wird kein Geld bewegt.</div></div>
+  <div class="card">
+    <div class="card-body">
+      <div class="fake-card"><div class="chip"></div>4242 4242 4242 4242<div class="small mt-1">TESTKARTE · 12/34</div></div>
+      <h2>{{ purchase.exam.name }}</h2>
+      <p class="muted small">Paket {{ purchase.number }} · {{ purchase.email }}</p>
+      <ul class="summary-list">
+        {% for examiner in examiners %}<li>{% icon "examiner" %} {{ examiner.name }}</li>{% endfor %}
+      </ul>
+      <div class="price-row total"><span>Zu zahlen</span><span>{{ purchase.amount_cents|eur }}</span></div>
+      <form method="post" class="form-actions">
+        {% csrf_token %}
+        <button class="btn btn-success btn-lg" type="submit" name="action" value="pay">{% icon "check" %} Zahlung erfolgreich simulieren</button>
+        <button class="btn btn-ghost" type="submit" name="action" value="cancel">Abbrechen</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

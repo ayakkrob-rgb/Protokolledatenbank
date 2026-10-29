@@ -1,0 +1,96 @@
+{% extends "verwaltung/base.html" %}
+{% load ui %}
+{% block admin_title %}{{ account.email }}{% endblock %}
+{% block content %}
+<nav class="breadcrumbs"><a href="{% url 'verwaltung:users' %}">Nutzer</a><span class="sep">/</span><span>{{ account.email }}</span></nav>
+<div class="page-head">
+  <div><h1>{{ account.name|default:account.email }}</h1><p>{{ account.email }} · registriert am {{ account.date_joined|date:"d.m.Y" }}{% if account.last_login %} · zuletzt angemeldet {{ account.last_login|date:"d.m.Y H:i" }}{% endif %}</p></div>
+  <div class="actions">{% if not account.is_active %}{% badge "Gesperrt" "danger" %}{% elif not account.email_verified %}{% badge "E-Mail unbestätigt" "warning" %}{% else %}{% badge "Aktiv" "success" %}{% endif %}{% if account.is_staff %}{% badge "Admin" "primary" %}{% endif %}</div>
+</div>
+
+<div class="grid grid-sidebar">
+  <div class="stack">
+    <section class="card">
+      <div class="card-head"><h2>{% icon "package" %} Pakete</h2></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Paket</th><th>Prüfer</th><th>Status</th><th>Erstattung</th><th class="num">Betrag</th></tr></thead>
+          <tbody>
+            {% for p in purchases %}
+            <tr>
+              <td><a href="{% url 'verwaltung:purchase_detail' p.pk %}">{{ p.number }}</a><span class="sub">{{ p.exam.code }} · {{ p.created_at|date:"d.m.Y" }}</span></td>
+              <td class="small">{{ p.examiners.all|join:", " }}</td>
+              <td>{% include "verwaltung/_purchase_status.html" %}</td>
+              <td>{% include "verwaltung/_refund_status.html" %}</td>
+              <td class="num">{{ p.amount_cents|eur }}</td>
+            </tr>
+            {% empty %}<tr><td colspan="5" class="muted">Keine Pakete.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>{% icon "upload" %} Uploads</h2></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Protokoll</th><th>Prüfer</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for protocol in uploads %}
+            <tr><td><a href="{% url 'verwaltung:protocol_edit' protocol.pk %}">{{ protocol.display_title }}</a><span class="sub">{{ protocol.created_at|date:"d.m.Y" }}</span></td><td>{{ protocol.examiner.name }} <span class="muted small">({{ protocol.examiner.exam.code }})</span></td><td>{% include "verwaltung/_protocol_status.html" %}</td></tr>
+            {% empty %}<tr><td colspan="3" class="muted">Keine Uploads.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>{% icon "unlock" %} Paket manuell freischalten</h2></div>
+      <div class="card-body">
+        <p class="small muted">Z. B. bei Barzahlung, als Dankeschön oder zur Kulanz. Wird ohne Stripe freigeschaltet.</p>
+        <form method="post" class="form-stack" novalidate>
+          {% csrf_token %}<input type="hidden" name="action" value="grant">
+          <div class="field-row">{% include "partials/field.html" with field=grant_form.exam %}{% include "partials/field.html" with field=grant_form.amount %}</div>
+          {% include "partials/field.html" with field=grant_form.examiners %}
+          {% include "partials/field.html" with field=grant_form.note %}
+          <button class="btn btn-primary" type="submit">Freischalten</button>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <aside class="stack">
+    <section class="card">
+      <div class="card-head"><h2>Konto</h2></div>
+      <div class="card-body">
+        <form method="post" class="form-stack" novalidate>
+          {% csrf_token %}<input type="hidden" name="action" value="save">
+          {% include "partials/field.html" with field=form.name %}
+          {% include "partials/field.html" with field=form.email %}
+          {% include "partials/field.html" with field=form.email_verified %}
+          {% include "partials/field.html" with field=form.is_active %}
+          {% include "partials/field.html" with field=form.is_staff %}
+          {% include "partials/field.html" with field=form.admin_note %}
+          <button class="btn btn-primary btn-block" type="submit">Speichern</button>
+        </form>
+      </div>
+    </section>
+    <section class="card card-body stack-sm">
+      <h3>Aktionen</h3>
+      {% if not account.email_verified %}
+      <form method="post">{% csrf_token %}<button class="btn btn-block" name="action" value="verify">{% icon "check" %} E-Mail als bestätigt markieren</button></form>
+      <form method="post">{% csrf_token %}<button class="btn btn-block" name="action" value="resend">{% icon "send" %} Bestätigungslink senden</button></form>
+      {% endif %}
+      <form method="post">{% csrf_token %}<button class="btn btn-block" name="action" value="reset">{% icon "key" %} Passwort-Link senden</button></form>
+      <a class="btn btn-block" href="{% url 'verwaltung:emails' %}?q={{ account.email|urlencode }}">{% icon "mail" %} E-Mails an diese Person</a>
+    </section>
+    {% if account != user %}
+    <section class="card card-danger card-body">
+      <h3>Konto löschen</h3>
+      <p class="small muted">Persönliche Daten werden entfernt, Käufe bleiben anonymisiert für die Buchhaltung erhalten.</p>
+      <form method="post" data-confirm="Konto {{ account.email }} wirklich löschen?">{% csrf_token %}<button class="btn btn-outline-danger btn-sm" name="action" value="delete">{% icon "trash" %} Konto löschen</button></form>
+    </section>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

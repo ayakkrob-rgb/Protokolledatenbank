@@ -1,0 +1,10 @@
+{% autoescape off %}Hallo {{ user.first_name }},
+
+vielen Dank für dein Gedächtnisprotokoll! Folgende Protokolle sind bei uns eingegangen:
+{% for protocol in protocols %}  • {{ protocol.examiner.name }} ({{ protocol.examiner.exam.code }}, {{ protocol.date_label }})
+{% endfor %}
+{% if pending %}Die Fachschaft schaut kurz drüber und schaltet sie dann frei. Hast du für diese Prüfung ein Paket gekauft, erstatten wir dir den Betrag nach der Freigabe automatisch.{% else %}Deine Protokolle sind ab sofort für andere Studierende sichtbar.{% endif %}
+
+Viele Grüße
+{{ site.organization_name }}
+{% endautoescape %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Protokoll hochladen – {{ exam.code }}{% endblock %}
+{% block content %}
+<nav class="breadcrumbs"><a href="{% url 'protocols:upload_start' %}">Protokoll hochladen</a><span class="sep">/</span><span>{{ exam.name }}</span></nav>
+<div class="page-head">
+  <div>
+    <h1>Protokoll für {{ exam.name }}</h1>
+    <p>Lege für jeden Prüfer deiner Prüfung einen eigenen Abschnitt an (bis zu {{ max_sections }}). Text eintippen oder Datei hochladen – beides geht.</p>
+  </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" novalidate>
+  {% csrf_token %}
+  <div class="grid grid-sidebar">
+    <div class="stack">
+      {% if eligible %}
+      <div class="refund-note">{% icon "refund" %}<div><strong>Du bekommst {{ refund_cents|eur }} zurück!</strong><br><span class="small">Für dein Paket {{ eligible.number }} vom {{ eligible.paid_at|date:"d.m.Y" }} erstatten wir dir den Betrag automatisch{% if site.require_upload_approval %}, sobald dein Protokoll freigegeben wurde{% endif %}.</span></div></div>
+      {% endif %}
+
+      <section class="card card-body">
+        <h2>Deine Prüfung</h2>
+        <div class="field-row">
+          {% include "partials/field.html" with field=meta_form.exam_date %}
+          {% include "partials/field.html" with field=meta_form.grade %}
+        </div>
+      </section>
+
+      <section data-formset="s" data-max="{{ max_sections }}">
+        {{ formset.management_form }}
+        {% if formset.non_form_errors %}<div class="alert alert-error mb-2">{% icon "alert" %}<div>{{ formset.non_form_errors|join:" " }}</div></div>{% endif %}
+        <div data-formset-list>
+          {% for form in formset.forms %}
+            {% include "protocols/_section.html" with form=form number=forloop.counter %}
+          {% endfor %}
+        </div>
+        <template data-formset-template>
+          {% include "protocols/_section.html" with form=formset.empty_form number="" %}
+        </template>
+        <button type="button" class="btn mt-2" data-formset-add>{% icon "plus" %} Weiteren Prüfer hinzufügen</button>
+      </section>
+
+      <section class="card card-body form-stack">
+        {% include "partials/field.html" with field=meta_form.confirm_own %}
+        {% include "partials/field.html" with field=meta_form.confirm_rights %}
+        <div class="form-actions mt-0">
+          <button class="btn btn-primary btn-lg" type="submit">{% icon "upload" %} Protokoll hochladen</button>
+          <span class="small muted">{% if site.require_upload_approval %}Die Fachschaft prüft dein Protokoll kurz, bevor es veröffentlicht wird.{% else %}Dein Protokoll ist sofort für andere sichtbar.{% endif %}</span>
+        </div>
+      </section>
+    </div>
+
+    <aside class="stack">
+      <div class="card card-body">
+        <h3>{% icon "info" %} Hinweise</h3>
+        <div class="guidelines">{{ site.upload_guidelines }}</div>
+      </div>
+    </aside>
+  </div>
+</form>
+{% endblock %}

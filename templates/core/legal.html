@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block container_class %}container-narrow{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{{ title }}</h1></div></div>
+<div class="card card-body legal-text">{{ text|urlize }}</div>
+{% endblock %}

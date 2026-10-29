@@ -1,0 +1,18 @@
+{% extends "verwaltung/base.html" %}
+{% load ui %}
+{% block admin_title %}Konto anlegen{% endblock %}
+{% block content %}
+<nav class="breadcrumbs"><a href="{% url 'verwaltung:users' %}">Nutzer</a><span class="sep">/</span><span>Neu</span></nav>
+<div class="page-head"><div><h1>Konto anlegen</h1><p>Z. B. für weitere Fachschaftsmitglieder. Die Person erhält eine E-Mail, um ihr Passwort zu setzen.</p></div></div>
+<section class="card container-xs">
+  <div class="card-body">
+    <form method="post" class="form-stack" novalidate>
+      {% csrf_token %}
+      {% include "partials/field.html" with field=form.name %}
+      {% include "partials/field.html" with field=form.email %}
+      {% include "partials/field.html" with field=form.is_staff %}
+      <div class="form-actions"><button class="btn btn-primary" type="submit">Anlegen &amp; Einladung senden</button></div>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "verwaltung/base.html" %}
+{% load ui %}
+{% block admin_title %}Prüfungen{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Prüfungen &amp; Fächer</h1><p>Prüfungen (z. B. M1, M2, M3) mit ihren Fächern. Preise können pro Prüfung abweichen.</p></div>
+  <div class="actions"><a class="btn btn-primary" href="{% url 'verwaltung:exam_create' %}">{% icon "plus" %} Neue Prüfung</a></div>
+</div>
+<section class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Kürzel</th><th>Name</th><th class="num">Fächer</th><th class="num">Prüfer</th><th class="num">Protokolle</th><th class="num">Preis / Erstattung</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for exam in exams %}
+        <tr>
+          <td class="strong">{{ exam.code }}</td>
+          <td><a href="{% url 'verwaltung:exam_edit' exam.pk %}">{{ exam.name }}</a><span class="sub">/pruefungen/{{ exam.slug }}/</span></td>
+          <td class="num">{{ exam.subject_count }}</td>
+          <td class="num"><a href="{% url 'verwaltung:examiners' %}?pruefung={{ exam.pk }}">{{ exam.examiner_count }}</a></td>
+          <td class="num"><a href="{% url 'verwaltung:protocols' %}?pruefung={{ exam.pk }}">{{ exam.protocol_count }}</a></td>
+          <td class="num">{% if exam.price_override is not None %}{{ exam.price_override|euro }}{% else %}<span class="muted">{{ site.price|euro }}</span>{% endif %} / {% if exam.refund_override is not None %}{{ exam.refund_override|euro }}{% else %}<span class="muted">{{ site.refund_amount|euro }}</span>{% endif %}</td>
+          <td>{% if exam.is_active %}{% badge "Aktiv" "success" %}{% else %}{% badge "Inaktiv" %}{% endif %}</td>
+          <td class="text-right"><a class="btn btn-sm" href="{% url 'verwaltung:exam_edit' exam.pk %}">{% icon "edit" %} Bearbeiten</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8"><div class="empty">{% icon "book" %}<h3>Noch keine Prüfungen</h3><a class="btn btn-primary" href="{% url 'verwaltung:exam_create' %}">Erste Prüfung anlegen</a></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<p class="small muted mt-2">Graue Werte = Standardwerte aus den Einstellungen.</p>
+{% endblock %}

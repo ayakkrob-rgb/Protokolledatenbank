@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Bitte E-Mail bestätigen{% endblock %}
+{% block content %}
+<div class="card auth-card">
+  <div class="card-body text-center">
+    <div class="success-mark">{% icon "mail" %}</div>
+    <h1>Fast geschafft!</h1>
+    <p>Wir haben {% if email %}an <strong>{{ email }}</strong> {% endif %}einen Bestätigungslink geschickt. Klicke auf den Link in der E-Mail, um dein Konto zu aktivieren.</p>
+    <p class="small muted">Keine E-Mail bekommen? Schau auch im Spam-Ordner nach. Der Link ist 3 Tage gültig.</p>
+    {% if simulated_link %}
+    <div class="sim-link mt-2">
+      <strong>Testbetrieb:</strong> E-Mails werden gerade nur simuliert. Hier ist dein Bestätigungslink:<br>
+      <a href="{{ simulated_link }}">{{ simulated_link }}</a>
+    </div>
+    {% endif %}
+    <a class="btn mt-3" href="{% url 'accounts:resend_verification' %}">{% icon "refresh" %} Link erneut senden</a>
+  </div>
+</div>
+{% endblock %}

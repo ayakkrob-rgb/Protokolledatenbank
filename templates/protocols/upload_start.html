@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Protokoll hochladen{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Protokoll hochladen</span>
+    <h1>Für welche Prüfung?</h1>
+    <p>Danke, dass du dein Wissen teilst! Hast du für die Prüfung ein Paket gekauft, bekommst du {{ refund_label }} automatisch zurück.</p>
+  </div>
+</div>
+<div class="grid grid-3">
+  {% for exam in exams %}
+  <a class="card exam-card" href="{% url 'protocols:upload' exam.slug %}">
+    <span class="exam-code">{{ exam.code }}</span>
+    <h3>{{ exam.name }}</h3>
+    {% with purchase=eligible|get_item:exam.pk %}
+      {% if purchase %}<p><span class="badge badge-success">{% icon "refund" %} Erstattung für Paket {{ purchase.number }} möglich</span></p>
+      {% else %}<p>Protokoll für {{ exam.code }} hochladen.</p>{% endif %}
+    {% endwith %}
+    <span class="btn btn-primary btn-sm mt-1">Auswählen {% icon "arrow-right" %}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

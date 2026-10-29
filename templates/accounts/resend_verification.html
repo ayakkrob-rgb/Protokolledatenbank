@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Bestätigungslink anfordern{% endblock %}
+{% block content %}
+<div class="card auth-card"><div class="card-body">
+  <h1>E-Mail bestätigen</h1>
+  <p class="muted">Bevor du Protokolle ansehen kannst, musst du deine E-Mail-Adresse bestätigen. Wir schicken dir gerne einen neuen Link.</p>
+  <form method="post" class="form-stack">
+    {% csrf_token %}
+    {% include "partials/field.html" with field=form.email %}
+    <button class="btn btn-primary btn-block" type="submit">Bestätigungslink senden</button>
+  </form>
+</div></div>
+{% endblock %}

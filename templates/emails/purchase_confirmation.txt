@@ -1,0 +1,17 @@
+{% load ui %}{% autoescape off %}Hallo,
+
+vielen Dank für deinen Kauf! Dein Paket {{ purchase.number }} für „{{ purchase.exam.name }}“ ist freigeschaltet.
+
+Freigeschaltete Prüfer:
+{% for examiner in examiners %}  • {{ examiner.name }}
+{% endfor %}
+Betrag: {{ purchase.amount_cents|eur }}{% if purchase.provider == "simulation" %} (Testbetrieb – simuliert, es wurde nichts abgebucht){% endif %}
+
+Deine Protokolle findest du hier: {{ dashboard_url }}
+
+Tipp: Lade nach deiner Prüfung dein eigenes Gedächtnisprotokoll hoch – dann erstatten wir dir {{ refund }} automatisch:
+{{ upload_url }}
+
+Viel Erfolg bei deiner Prüfung!
+{{ site.organization_name }}
+{% endautoescape %}

@@ -1,0 +1,9 @@
+{% extends "verwaltung/base.html" %}
+{% load ui %}
+{% block admin_title %}E-Mail{% endblock %}
+{% block content %}
+<nav class="breadcrumbs"><a href="{% url 'verwaltung:emails' %}">Postausgang</a><span class="sep">/</span><span>#{{ mail.pk }}</span></nav>
+<div class="page-head"><div><h1>{{ mail.subject }}</h1><p>An {{ mail.to }} · {{ mail.created_at|date:"d.m.Y H:i" }} · {{ mail.get_status_display }}</p></div></div>
+{% if mail.error %}<div class="alert alert-error mb-2">{% icon "alert" %}<div><span class="alert-title">Fehler beim Versand</span>{{ mail.error }}</div></div>{% endif %}
+<section class="card card-body"><div class="legal-text">{{ mail.body|urlize }}</div></section>
+{% endblock %}

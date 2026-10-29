@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Mein Bereich{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Mein Bereich</span>
+    <h1>Hallo {{ user.first_name }}!</h1>
+    <p>Hier findest du deine freigeschalteten Prüfer, deine Käufe und deine hochgeladenen Protokolle.</p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{% url 'protocols:exam_list' %}">{% icon "book" %} Prüfungen</a>
+    <a class="btn btn-primary" href="{% url 'protocols:upload_start' %}">{% icon "upload" %} Protokoll hochladen</a>
+  </div>
+</div>
+
+{% for exam in refundable_exams %}
+<div class="info-strip">
+  {% icon "refund" %}
+  <p><strong>Prüfung {{ exam.code }} geschafft?</strong> Lade dein Gedächtnisprotokoll hoch und du bekommst dein Geld für das {{ exam.code }}-Paket fast vollständig zurück.</p>
+  <a class="btn btn-primary btn-sm" href="{% url 'protocols:upload' exam.slug %}">Jetzt hochladen</a>
+</div>
+{% endfor %}
+
+<div class="grid grid-sidebar">
+  <div class="stack">
+    <section class="card">
+      <div class="card-head"><h2>{% icon "package" %} Meine Pakete</h2></div>
+      {% for item in packages %}{% with p=item.purchase %}
+      <div class="package">
+        <div class="package-head">
+          <div>
+            <h3>{{ p.exam.name }}</h3>
+            <div class="small muted">Paket {{ p.number }} · {{ p.created_at|date:"d.m.Y" }}{% if p.amount_cents %} · {{ p.amount_cents|eur }}{% endif %}{% if p.expires_at %} · Zugriff bis {{ p.expires_at|date:"d.m.Y" }}{% endif %}</div>
+          </div>
+          <div class="row">
+            {% if p.status == "paid" and not p.is_expired %}{% badge "Freigeschaltet" "success" %}
+            {% elif p.status == "pending" %}{% badge "Zahlung offen" "warning" %}
+            {% elif p.is_expired %}{% badge "Abgelaufen" %}
+            {% else %}{% badge p.get_status_display %}{% endif %}
+            {% if p.refund_status == "refunded" %}<span class="badge badge-info">{% icon "refund" %} {{ p.refunded_cents|eur }} erstattet</span>{% elif p.refund_status == "processing" or p.refund_status == "manual_pending" %}{% badge "Erstattung in Bearbeitung" "info" %}{% elif p.refund_status == "failed" %}{% badge "Erstattung wird geprüft" "warning" %}{% endif %}
+          </div>
+        </div>
+        <div class="chips">
+          {% for examiner in item.examiners %}
+            {% if p.is_active %}
+            <a class="chip-link" href="{{ examiner.get_absolute_url }}">{% icon "unlock" %} {{ examiner.name }}</a>
+            {% else %}
+            <span class="chip-link">{{ examiner.name }}</span>
+            {% endif %}
+          {% endfor %}
+          {% if item.free_slots %}
+            <a class="chip-link chip-slot" href="{% url 'payments:extend' p.pk %}">{% icon "plus" %} {{ item.free_slots }} {{ item.free_slots|plural:"Platz,Plätze" }} frei – Prüfer hinzufügen</a>
+          {% endif %}
+        </div>
+        {% if p.status == "pending" %}
+        <div class="btn-group mt-2">
+          <form method="post" action="{% url 'payments:resume' p.pk %}" class="inline">{% csrf_token %}<button class="btn btn-primary btn-sm">{% icon "card" %} Zahlung abschließen</button></form>
+          <form method="post" action="{% url 'payments:discard' p.pk %}" class="inline">{% csrf_token %}<button class="btn btn-sm btn-ghost">Verwerfen</button></form>
+        </div>
+        {% endif %}
+      </div>
+      {% endwith %}{% empty %}
+      <div class="empty">
+        {% icon "package" %}
+        <h3>Noch keine Pakete</h3>
+        <p>Wähle eine Prüfung und schalte die Protokolle deiner Prüfer frei.</p>
+        <a class="btn btn-primary" href="{% url 'protocols:exam_list' %}">Prüfung auswählen</a>
+      </div>
+      {% endfor %}
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>{% icon "upload" %} Meine hochgeladenen Protokolle</h2></div>
+      {% if uploads %}
+      <ul class="protocol-list">
+        {% for protocol in uploads %}
+        <li class="protocol-item">
+          <span class="file-icon">{% icon "file-text" %}</span>
+          <div class="body">
+            <div class="title">{{ protocol.examiner.name }} <span class="muted small">· {{ protocol.examiner.exam.code }}</span></div>
+            <div class="meta"><span>{% icon "calendar" %} {{ protocol.date_label }}</span><span>Hochgeladen am {{ protocol.created_at|date:"d.m.Y" }}</span></div>
+            {% if protocol.status == "rejected" and protocol.rejection_reason %}<p class="small mt-1 mb-0 text-danger">Begründung: {{ protocol.rejection_reason }}</p>{% endif %}
+          </div>
+          <div class="actions">
+            {% if protocol.status == "published" %}{% badge "Veröffentlicht" "success" %}{% elif protocol.status == "pending" %}{% badge "Wird geprüft" "warning" %}{% else %}{% badge "Abgelehnt" "danger" %}{% endif %}
+            <a class="btn btn-sm" href="{{ protocol.get_absolute_url }}">Ansehen</a>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="empty">
+        {% icon "upload" %}
+        <h3>Noch nichts hochgeladen</h3>
+        <p>Nach deiner Prüfung kannst du hier dein Gedächtnisprotokoll teilen.</p>
+      </div>
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="stack">
+    <div class="card card-body">
+      <h3>Schnellzugriff</h3>
+      <div class="stack-sm">
+        {% for exam in exams %}
+        <a class="btn btn-block btn-between" href="{{ exam.get_absolute_url }}">{{ exam.name }} {% icon "chevron-right" %}</a>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="card card-body">
+      <h3>So bekommst du Geld zurück</h3>
+      <p class="small muted">Lade nach deiner Prüfung dein eigenes Protokoll zur gekauften Prüfung hoch. Wir erstatten dir automatisch {{ site.refund_amount|euro }} auf dein ursprüngliches Zahlungsmittel{% if site.require_upload_approval %}, sobald die Fachschaft dein Protokoll kurz geprüft hat{% endif %}.</p>
+      <a href="{% url 'core:faq' %}" class="small">Mehr dazu in den FAQ {% icon "arrow-right" %}</a>
+    </div>
+  </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% autoescape off %}Hallo,
+
+danke für dein Protokoll! Wir haben dir für dein Paket {{ purchase.number }} ({{ purchase.exam.name }}) {{ amount }} erstattet.{% if simulated %} (Testbetrieb – die Erstattung wurde nur simuliert.){% else %}
+
+Die Gutschrift erfolgt auf das Zahlungsmittel, mit dem du bezahlt hast. Je nach Bank kann es einige Werktage dauern, bis sie sichtbar ist.{% endif %}
+
+Viele Grüße
+{{ site.organization_name }}
+{% endautoescape %}

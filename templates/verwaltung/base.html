@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}{% block admin_title %}Verwaltung{% endblock %} · Verwaltung{% endblock %}
+{% block body_class %}admin{% endblock %}
+{% block layout %}
+{% with path=request.path %}
+<div class="admin-shell">
+  <aside class="admin-sidebar" aria-label="Verwaltung">
+    <div class="group">
+      <a href="{% url 'verwaltung:dashboard' %}" class="{% if path == '/verwaltung/' %}active{% endif %}">{% icon "dashboard" %} Übersicht</a>
+    </div>
+    <div class="group">
+      <div class="group-title">Inhalte</div>
+      <a href="{% url 'verwaltung:exams' %}" class="{% if '/verwaltung/pruefungen/' in path %}active{% endif %}">{% icon "book" %} Prüfungen &amp; Fächer</a>
+      <a href="{% url 'verwaltung:examiners' %}" class="{% if '/verwaltung/pruefer/' in path %}active{% endif %}">{% icon "examiner" %} Prüfer</a>
+      <a href="{% url 'verwaltung:protocols' %}" class="{% if '/verwaltung/protokolle/' in path %}active{% endif %}">{% icon "file-text" %} Protokolle</a>
+      <a href="{% url 'verwaltung:moderation' %}" class="{% if '/verwaltung/freigaben/' in path %}active{% endif %}">{% icon "shield" %} Freigaben{% if admin_badges.pending_protocols %}<span class="count-pill">{{ admin_badges.pending_protocols }}</span>{% endif %}</a>
+      <a href="{% url 'verwaltung:import' %}" class="{% if '/verwaltung/import/' in path %}active{% endif %}">{% icon "import" %} Import Altbestand</a>
+    </div>
+    <div class="group">
+      <div class="group-title">Studierende &amp; Geld</div>
+      <a href="{% url 'verwaltung:users' %}" class="{% if '/verwaltung/nutzer/' in path %}active{% endif %}">{% icon "users" %} Nutzer</a>
+      <a href="{% url 'verwaltung:purchases' %}" class="{% if '/verwaltung/zahlungen/' in path %}active{% endif %}">{% icon "euro" %} Zahlungen{% if admin_badges.refund_issues %}<span class="count-pill">{{ admin_badges.refund_issues }}</span>{% endif %}</a>
+    </div>
+    <div class="group">
+      <div class="group-title">System</div>
+      <a href="{% url 'verwaltung:settings' %}" class="{% if '/verwaltung/einstellungen/' in path %}active{% endif %}">{% icon "settings" %} Einstellungen</a>
+      <a href="{% url 'verwaltung:emails' %}" class="{% if '/verwaltung/emails/' in path %}active{% endif %}">{% icon "mail" %} Postausgang</a>
+      <a href="{% url 'verwaltung:audit' %}" class="{% if '/verwaltung/logbuch/' in path %}active{% endif %}">{% icon "list" %} Logbuch</a>
+      {% if user.is_superuser %}<a href="{% url 'admin:index' %}">{% icon "key" %} Expertenmodus</a>{% endif %}
+    </div>
+  </aside>
+  <div class="admin-main">
+    <main>
+      {% include "partials/messages.html" %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% endwith %}
+{% endblock %}
+{% block footer %}{% endblock %}
