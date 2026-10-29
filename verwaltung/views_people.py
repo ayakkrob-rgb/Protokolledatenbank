@@ -167,6 +167,9 @@ def purchase_list(request):
         request,
         "verwaltung/purchase_list.html",
         {
+            "simulated_active": Purchase.objects.filter(
+                provider=Purchase.PROVIDER_SIMULATION, status=Purchase.STATUS_PAID
+            ).count(),
             "page": paginate(request, qs, 50),
             "q": q,
             "filters": filters,
@@ -178,6 +181,18 @@ def purchase_list(request):
             "querystring": request.GET.urlencode(),
         },
     )
+
+
+@staff_required
+@require_POST
+def revoke_simulated(request):
+    """Sperrt alle (noch freigeschalteten) Pakete aus dem Simulationsbetrieb – z. B. nach dem Livegang."""
+    count = Purchase.objects.filter(provider=Purchase.PROVIDER_SIMULATION, status=Purchase.STATUS_PAID).update(
+        status=Purchase.STATUS_REVOKED
+    )
+    audit("paket.simulierte_gesperrt", f"{count} simulierte Pakete gesperrt", actor=request.user)
+    messages.success(request, f"{count} Test-Pakete wurden gesperrt.")
+    return redirect("verwaltung:purchases")
 
 
 @staff_required

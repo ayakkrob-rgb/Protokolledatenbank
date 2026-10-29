@@ -188,6 +188,15 @@ class AdminActionTests(BaseTestCase):
         self.assertEqual(purchase.refunded_cents, 3000)
         self.assertEqual(purchase.status, Purchase.STATUS_REVOKED)
 
+    def test_revoke_simulated_packages(self):
+        simulated = make_paid_purchase(self.student, self.exam, self.examiners[:1])
+        real = make_paid_purchase(self.student, self.exam, self.examiners[1:2], provider=Purchase.PROVIDER_STRIPE)
+        self.client.post(reverse("verwaltung:revoke_simulated"))
+        simulated.refresh_from_db()
+        real.refresh_from_db()
+        self.assertEqual(simulated.status, Purchase.STATUS_REVOKED)
+        self.assertEqual(real.status, Purchase.STATUS_PAID)
+
     def test_csv_export(self):
         make_paid_purchase(self.student, self.exam, self.examiners[:2])
         response = self.client.get(reverse("verwaltung:purchase_export"))

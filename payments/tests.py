@@ -108,6 +108,17 @@ class SimulatedPurchaseTests(BaseTestCase):
         purchase.refresh_from_db()
         self.assertEqual(purchase.status, Purchase.STATUS_PENDING)
 
+    def test_simulation_page_closed_after_switch_to_stripe(self):
+        self.login()
+        purchase = services.create_purchase(self.student, self.exam, self.examiners[:1], self.site)
+        self.site.payment_mode = SiteSettings.PAYMENT_STRIPE
+        self.site.stripe_secret_key = "sk_test_x"
+        self.site.save()
+        response = self.client.post(reverse("payments:simulate", args=[purchase.pk]), {"action": "pay"})
+        self.assertEqual(response.status_code, 404)
+        purchase.refresh_from_db()
+        self.assertEqual(purchase.status, Purchase.STATUS_PENDING)
+
     def test_foreign_purchase_is_hidden(self):
         from core.testing import make_user
 

@@ -36,6 +36,7 @@ urlpatterns = [
     # Zahlungen
     path("zahlungen/", views_people.purchase_list, name="purchases"),
     path("zahlungen/export.csv", views_people.purchase_export, name="purchase_export"),
+    path("zahlungen/simulierte-sperren/", views_people.revoke_simulated, name="revoke_simulated"),
     path("zahlungen/<int:pk>/", views_people.purchase_detail, name="purchase_detail"),
     # System
     path("einstellungen/", views.site_settings, name="settings"),

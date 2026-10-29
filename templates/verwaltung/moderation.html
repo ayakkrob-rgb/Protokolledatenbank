@@ -12,7 +12,7 @@
 <section class="submission">
   <div class="submission-head">
     <div>
-      <strong>{{ first.examiner.exam.name }}</strong> · Prüfung am {{ first.date_label }}{% if first.grade %} · Note {{ first.grade }}{% endif %}
+      <strong>{{ first.examiner.exam.name }}</strong> · Prüfungsdatum: {{ first.date_label }}{% if first.grade %} · Note {{ first.grade }}{% endif %}
       <div class="small muted">von {% if first.uploaded_by %}<a href="{% url 'verwaltung:user_detail' first.uploaded_by.pk %}">{{ first.uploaded_by.email }}</a>{% else %}unbekannt{% endif %} · {{ first.created_at|date:"d.m.Y H:i" }} · {{ group|length }} {{ group|length|plural:"Protokoll,Protokolle" }}</div>
     </div>
   </div>

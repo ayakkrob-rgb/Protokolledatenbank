@@ -7,6 +7,15 @@
   <div class="actions"><a class="btn" href="{% url 'verwaltung:purchase_export' %}{% if querystring %}?{{ querystring }}{% endif %}">{% icon "download" %} Als CSV exportieren</a></div>
 </div>
 
+{% if simulated_active %}
+<div class="alert alert-warning mb-3">{% icon "flask" %}
+  <div><span class="alert-title">{{ simulated_active }} Test-Pakete aus dem Simulationsbetrieb sind freigeschaltet.</span>
+    {% if site.is_simulation %}Solange der Simulationsmodus läuft, ist das gewollt. Vor dem Livegang solltest du sie sperren.{% else %}Der Simulationsmodus ist aus – diese Pakete wurden nie bezahlt.{% endif %}
+    <form method="post" action="{% url 'verwaltung:revoke_simulated' %}" class="mt-1" data-confirm="Alle {{ simulated_active }} Test-Pakete sperren?">{% csrf_token %}<button class="btn btn-sm">{% icon "ban" %} Alle Test-Pakete sperren</button></form>
+  </div>
+</div>
+{% endif %}
+
 <div class="kpis">
   <div class="kpi"><div class="label">Bezahlte Pakete (Filter)</div><div class="value">{{ totals.count }}</div></div>
   <div class="kpi"><div class="label">Eingenommen</div><div class="value">{{ totals.revenue|eur }}</div></div>

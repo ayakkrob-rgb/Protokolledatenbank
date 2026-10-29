@@ -40,6 +40,11 @@ def _alerts(site):
         if site.stripe_key_mode == "test":
             alerts.append(("info", "info", "Stripe läuft im Testmodus (sk_test_…).",
                            "Für echte Zahlungen den Live-Schlüssel (sk_live_…) eintragen.", "zahlungen"))
+    if not site.is_simulation:
+        simulated = Purchase.objects.filter(provider=Purchase.PROVIDER_SIMULATION, status=Purchase.STATUS_PAID).count()
+        if simulated:
+            alerts.append(("warning", "flask", f"{simulated} Test-Pakete aus dem Simulationsbetrieb sind noch freigeschaltet.",
+                           "Wer im Testbetrieb „gekauft“ hat, hat noch Zugriff. Unter Zahlungen kannst du alle Test-Pakete mit einem Klick sperren.", ""))
     if site.email_mode != SiteSettings.EMAIL_SMTP:
         alerts.append(("info", "mail", "E-Mails werden nur simuliert.",
                        "Bestätigungslinks findest du im Postausgang. Für echten Versand SMTP einrichten.", "email"))

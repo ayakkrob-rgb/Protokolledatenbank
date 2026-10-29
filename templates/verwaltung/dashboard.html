@@ -13,7 +13,7 @@
 {% if alerts %}
 <div class="messages">
   {% for level, icon_name, title, text, tab in alerts %}
-  <div class="alert alert-{{ level }}">{% icon icon_name %}<div><span class="alert-title">{{ title }}</span>{{ text }}{% if tab %} <a href="{% url 'verwaltung:settings' %}#{{ tab }}">Jetzt ändern</a>{% endif %}</div></div>
+  <div class="alert alert-{{ level }}">{% icon icon_name %}<div><span class="alert-title">{{ title }}</span>{{ text }}{% if tab %} <a href="{% url 'verwaltung:settings' %}#{{ tab }}">Jetzt ändern</a>{% elif icon_name == "flask" %} <a href="{% url 'verwaltung:purchases' %}?zahlungsart=simulation">Zu den Zahlungen</a>{% endif %}</div></div>
   {% endfor %}
 </div>
 {% endif %}

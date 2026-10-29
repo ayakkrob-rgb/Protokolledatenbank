@@ -132,6 +132,7 @@ Die Übersichtsseite im Adminbereich zeigt offene Punkte automatisch als Hinweis
 5. **Einstellungen → Zahlungen:** Stripe anbinden und „Verbindung testen“ (siehe Abschnitt 4).
 6. **Prüfungen & Fächer / Prüfer:** Testprüfer und Beispielprotokolle löschen (oder die Datenbank neu aufsetzen ohne `DEMO_DATA`) und den Altbestand importieren (Abschnitt 6).
 7. Einmal mit einem echten Studierenden-Konto komplett durchspielen: registrieren, bestätigen, kaufen, hochladen, Erstattung prüfen.
+8. Nach dem Umstellen auf Stripe unter **Zahlungen → „Alle Test-Pakete sperren“** die im Simulationsbetrieb „gekauften“ Pakete deaktivieren. Die Simulations-Bezahlseite ist dann automatisch gesperrt.
 
 ---
 

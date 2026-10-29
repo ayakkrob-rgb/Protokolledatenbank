@@ -203,6 +203,10 @@ if env_bool("BEHIND_PROXY", False):
     USE_X_FORWARDED_HOST = True
 if env_bool("SECURE_SSL_REDIRECT", False):
     SECURE_SSL_REDIRECT = True
+# Optional: HTTP Strict Transport Security (nur setzen, wenn die Seite dauerhaft nur per HTTPS läuft)
+SECURE_HSTS_SECONDS = int(env("HSTS_SECONDS", "0") or 0)
+# SAMEORIGIN ist nötig, damit PDFs in der Protokollansicht eingebettet angezeigt werden können.
+SILENCED_SYSTEM_CHECKS = ["security.W019"]
 
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 

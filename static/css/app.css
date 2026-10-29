@@ -580,3 +580,4 @@ details.reject textarea { flex: 1; min-width: 240px; }
 .subject-row .flex-1 { min-width: 0; }
 .subject-row .w-num { width: 58px !important; }
 .subject-row .btn { flex: none; }
+.admin .banner .container { max-width: none; padding: 0 24px; }

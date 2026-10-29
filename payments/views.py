@@ -84,7 +84,7 @@ def order(request, slug):
 def simulate(request, pk):
     """Simulierte Bezahlseite – ersetzt Stripe, solange der Simulationsmodus aktiv ist."""
     purchase = _own_purchase(request, pk)
-    if purchase.provider != Purchase.PROVIDER_SIMULATION:
+    if purchase.provider != Purchase.PROVIDER_SIMULATION or not SiteSettings.get().is_simulation:
         raise Http404
     if purchase.status == Purchase.STATUS_PAID:
         return redirect("payments:success", pk=purchase.pk)
